@@ -5,7 +5,20 @@ const cors = require('cors');
 const compression = require('compression');
 
 const app = express();
+// ADD THIS BLOCK NOW
+app.get('/', (req, res) => {
+  res.send('Server is up');
+});
 
+// your existing routes
+app.get('/api/head/overview', (req, res) => {
+  res.json({ performance: [], intake: [] });
+});
+
+// keep this last
+app.listen(3000, () => {
+  console.log('School management server running on http://localhost:3000');
+});
 // Security and performance middleware
 app.use(helmet());
 app.use(cors({ origin: true, credentials: true }));
