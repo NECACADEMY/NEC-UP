@@ -24,6 +24,9 @@ app.use(helmet());
 app.use(cors({ origin: true, credentials: true }));
 app.use(compression());
 app.use(express.json());
+app.get('/', (req, res) => {
+  res.send('Server is up');
+});
 
 // Health check
 app.get('/health', (req, res) => {
