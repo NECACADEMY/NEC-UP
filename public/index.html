@@ -1,0 +1,260 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>School Management Demo</title>
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; padding: 16px; max-width: 900px; margin: auto; }
+    label, button, select, input { font-size: 16px; margin-right: 8px; }
+    .box { border: 1px solid #ddd; padding: 12px; border-radius: 8px; margin-bottom: 16px; }
+    pre { background: #f7f7f7; padding: 10px; border-radius: 6px; overflow:auto; }
+    .attendance-row, .score-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .history-row { margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <h1>School Management Demo</h1>
+
+  <!-- LOGIN -->
+  <div class="box">
+    <h3>Login (demo)</h3>
+    <label for="role">Role:</label>
+    <select id="role">
+      <option value="admin">admin</option>
+      <option value="head">head</option>
+      <option value="teacher">teacher</option>
+      <option value="accountant">accountant</option>
+    </select>
+    <button id="loginBtn">Login</button>
+    <div>Token: <span id="token">-</span></div>
+  </div>
+
+  <!-- TEACHER DASHBOARD -->
+  <div class="box" id="teacherBox" style="display:none;">
+    <h3>Teacher Dashboard</h3>
+
+    <h4>Attendance</h4>
+    <div id="attendanceList"></div>
+    <button id="submitAttendanceBtn" style="margin-top:12px;">Submit Attendance</button>
+
+    <h4>Enter Scores</h4>
+    <div id="scoresList"></div>
+    <button id="submitScoresBtn" style="margin-top:12px;">Submit Scores</button>
+
+    <h4>Attendance History</h4>
+    <div id="attendanceHistory"></div>
+    <pre id="teacherOut">{}</pre>
+  </div>
+
+  <!-- ADMIN DASHBOARD -->
+  <div class="box" id="adminBox" style="display:none;">
+    <h3>Admin Dashboard - Add Students</h3>
+    <label for="studentName">Name:</label>
+    <input id="studentName" type="text" placeholder="John Doe">
+    <label for="studentClass">Class:</label>
+    <input id="studentClass" type="text" placeholder="Grade 1">
+    <button id="addStudentBtn">Add Student</button>
+    <pre id="adminOut">{}</pre>
+  </div>
+
+  <!-- HEAD DASHBOARD -->
+  <div class="box" id="headBox" style="display:none;">
+    <h3>Head Dashboard - Student Overview</h3>
+    <div id="headData"></div>
+    <pre id="headOut">{}</pre>
+  </div>
+
+<script>
+const base = '';
+let token = '';
+let students = [];
+
+// LOGIN
+document.getElementById('loginBtn').onclick = async () => {
+  const role = document.getElementById('role').value;
+  try {
+    const res = await fetch(base + '/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role })
+    });
+    if (!res.ok) throw new Error('Login failed: ' + res.status);
+    const data = await res.json();
+    token = data.token || '';
+    document.getElementById('token').textContent = token || '-';
+    alert('Logged in as ' + role);
+
+    // Show dashboards
+    document.getElementById('teacherBox').style.display = 'none';
+    document.getElementById('adminBox').style.display = 'none';
+    document.getElementById('headBox').style.display = 'none';
+
+    if (role === 'teacher') loadStudents();
+    if (role === 'admin') document.getElementById('adminBox').style.display = 'block';
+    if (role === 'head') loadHeadData();
+  } catch(err) {
+    alert(err.message);
+    console.error(err);
+  }
+};
+
+// LOAD STUDENTS FOR TEACHER
+async function loadStudents() {
+  try {
+    const res = await fetch(base + '/api/teacher/attendance', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) throw new Error('Failed to load students');
+    const data = await res.json();
+    students = data.items || [];
+    renderAttendance();
+    renderScores();
+    document.getElementById('teacherBox').style.display = 'block';
+  } catch(err) {
+    alert(err.message);
+    console.error(err);
+  }
+}
+
+// RENDER ATTENDANCE
+function renderAttendance() {
+  const container = document.getElementById('attendanceList');
+  container.innerHTML = '';
+  students.forEach(name => {
+    const row = document.createElement('div');
+    row.className = 'attendance-row';
+    row.innerHTML = `
+      <span>${name}</span>
+      <select class="status">
+        <option value="Present">Present</option>
+        <option value="Absent">Absent</option>
+      </select>
+    `;
+    container.appendChild(row);
+  });
+}
+
+// RENDER SCORES
+function renderScores() {
+  const container = document.getElementById('scoresList');
+  container.innerHTML = '';
+  students.forEach(name => {
+    const row = document.createElement('div');
+    row.className = 'score-row';
+    row.innerHTML = `
+      <span>${name}</span>
+      <input type="number" placeholder="Math" class="scoreMath" min="0" max="100">
+      <input type="number" placeholder="English" class="scoreEnglish" min="0" max="100">
+    `;
+    container.appendChild(row);
+  });
+}
+
+// SUBMIT ATTENDANCE
+document.getElementById('submitAttendanceBtn').onclick = async () => {
+  const attendance = {};
+  document.querySelectorAll('#attendanceList .attendance-row').forEach(row => {
+    const name = row.querySelector('span').textContent;
+    const status = row.querySelector('select').value;
+    attendance[name] = status;
+  });
+  try {
+    const res = await fetch(base + '/api/teacher/homework', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ attendance })
+    });
+    if (!res.ok) throw new Error('Failed to submit attendance');
+    const data = await res.json();
+    show('teacherOut', data);
+    alert('Attendance saved successfully!');
+  } catch(err) {
+    alert(err.message);
+    console.error(err);
+  }
+}
+
+// SUBMIT SCORES
+document.getElementById('submitScoresBtn').onclick = async () => {
+  const scores = {};
+  document.querySelectorAll('#scoresList .score-row').forEach(row => {
+    const name = row.querySelector('span').textContent;
+    const math = row.querySelector('.scoreMath').value;
+    const english = row.querySelector('.scoreEnglish').value;
+    scores[name] = {};
+    if (math) scores[name]['Math'] = Number(math);
+    if (english) scores[name]['English'] = Number(english);
+  });
+  try {
+    const res = await fetch(base + '/api/teacher/scores', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ scores })
+    });
+    if (!res.ok) throw new Error('Failed to submit scores');
+    const data = await res.json();
+    show('teacherOut', data);
+    alert('Scores saved successfully!');
+  } catch(err) {
+    alert(err.message);
+    console.error(err);
+  }
+}
+
+// ADMIN - ADD STUDENT
+document.getElementById('addStudentBtn').onclick = async () => {
+  const name = document.getElementById('studentName').value.trim();
+  const className = document.getElementById('studentClass').value.trim();
+  if (!name || !className) return alert('Name and class required');
+
+  try {
+    const res = await fetch(base + '/api/admin/students', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ name, class: className })
+    });
+    if (!res.ok) throw new Error('Failed to add student');
+    const data = await res.json();
+    document.getElementById('studentName').value = '';
+    document.getElementById('studentClass').value = '';
+    show('adminOut', data);
+    alert('Student added successfully!');
+    if (document.getElementById('teacherBox').style.display === 'block') loadStudents();
+  } catch(err) {
+    alert(err.message);
+    console.error(err);
+  }
+}
+
+// HEAD DASHBOARD
+async function loadHeadData() {
+  try {
+    const res = await fetch(base + '/api/head/overview', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) throw new Error('Failed to load head data');
+    const data = await res.json();
+    const container = document.getElementById('headData');
+    container.innerHTML = '';
+    data.students.forEach(s => {
+      const div = document.createElement('div');
+      div.innerHTML = `<b>${s.name} (${s.class})</b> - Attendance: ${s.attendance.length}, Scores: ${JSON.stringify(Object.fromEntries(s.scores))}`;
+      container.appendChild(div);
+    });
+    show('headOut', data);
+    document.getElementById('headBox').style.display = 'block';
+  } catch(err) {
+    alert(err.message);
+    console.error(err);
+  }
+}
+
+// SHOW JSON OUTPUT
+function show(elId, data) {
+  document.getElementById(elId).textContent = JSON.stringify(data, null, 2);
+}
+</script>
+
+</body>
+</html>
