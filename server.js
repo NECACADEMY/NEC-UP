@@ -5,25 +5,14 @@ const cors = require('cors');
 const compression = require('compression');
 
 const app = express();
-// ADD THIS BLOCK NOW
-app.get('/', (req, res) => {
-  res.send('Server is up');
-});
 
-// your existing routes
-app.get('/api/head/overview', (req, res) => {
-  res.json({ performance: [], intake: [] });
-});
-
-// keep this last
-app.listen(3000, () => {
-  console.log('School management server running on http://localhost:3000');
-});
-// Security and performance middleware
+// Security and performance middleware (must come before routes)
 app.use(helmet());
 app.use(cors({ origin: true, credentials: true }));
 app.use(compression());
 app.use(express.json());
+
+// Root route (so http://localhost:3000/ works)
 app.get('/', (req, res) => {
   res.send('Server is up');
 });
@@ -33,7 +22,7 @@ app.get('/health', (req, res) => {
   res.json({ ok: true, service: 'school-management', time: new Date().toISOString() });
 });
 
-// Simple role-based example routes
+// API routes
 app.post('/api/auth/login', (req, res) => {
   // Temporary demo only: no real auth yet
   const { role } = req.body || {};
@@ -41,18 +30,16 @@ app.post('/api/auth/login', (req, res) => {
   res.json({ token: 'demo-token-' + role, role });
 });
 
-app.get('/api/teacher/attendance', (req,res) => {
-  res.json({ items: [] }); // will connect to database later
-});
-app.post('/api/teacher/homework', (req, res) => {
-  res.json({ status: 'saved' });
-});
-
 app.get('/api/head/overview', (req, res) => {
   res.json({ performance: [], intake: [] });
 });
-app.get('/', (req, res) => {
-  res.send('Server is up');
+
+app.get('/api/teacher/attendance', (req, res) => {
+  res.json({ items: [] }); // will connect to database later
+});
+
+app.post('/api/teacher/homework', (req, res) => {
+  res.json({ status: 'saved' });
 });
 
 app.get('/api/account/fees', (req, res) => {
@@ -60,7 +47,12 @@ app.get('/api/account/fees', (req, res) => {
 });
 
 app.post('/api/admin/students', (req, res) => {
-  res.json({ status: 'student-added' });
+
+res.json({ status: 'student-added' });
+
+// 404 handler for unknown routes (optional but helpful)
+app.use((req, res) => {
+  res.status(404).json({ error: 'Not found', path: req.path });
 });
 
 // Start server
