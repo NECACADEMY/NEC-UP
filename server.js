@@ -35,6 +35,9 @@ app.post('/api/teacher/homework', (req, res) => {
 app.get('/api/head/overview', (req, res) => {
   res.json({ performance: [], intake: [] });
 });
+app.get('/', (req, res) => {
+  res.send('Server is up');
+});
 
 app.get('/api/account/fees', (req, res) => {
   res.json({ receipts: [] });
