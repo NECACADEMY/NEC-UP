@@ -1,0 +1,15 @@
+{
+"name": "school-management",
+"version": "0.0.1",
+"private": true,
+"description": "Secure, mobile-friendly school management system",
+"scripts": {
+"start": "node server.js"
+},
+"dependencies": {
+"express": "4.21.1",
+"helmet": "7.1.0",
+"cors": "2.8.5",
+"compression": "1.7.4"
+}
+}
