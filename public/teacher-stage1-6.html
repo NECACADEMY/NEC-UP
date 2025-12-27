@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Newings Teacher Dashboard</title>
+  <style>
+    body { font-family: Arial; background:#0f7c3a; margin:0; padding:0; }
+    .container { max-width:900px; margin:30px auto; background:#b0b0b0; border-radius:12px; padding:20px; }
+    h2 { text-align:center; color:#fff; }
+    .tab{display:flex; margin-bottom:20px; border-bottom:2px solid #ddd;}
+    .tab button{flex:1;padding:10px; cursor:pointer; background:#d0d0d0; border:none; font-weight:bold;}
+    .tab button.active{background:#0f7c3a; color:#fff;}
+    .tabcontent{display:none;} .tabcontent.active{display:block;}
+    label, select, input, textarea {display:block;width:100%;margin-top:10px;padding:10px;font-size:16px;border:2px solid red;border-radius:6px;background:#f0f0f0;}
+    button.submit{background:#0f7c3a;color:#fff;font-weight:bold;border:none;margin-top:15px;cursor:pointer;padding:12px;border-radius:6px;width:100%;}
+    .hidden{display:none;}
+    #saveMsg{margin-top:10px;color:#ffd700;font-weight:bold;}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Newings Teacher Dashboard</h2>
+
+    <!-- LOGIN -->
+    <div id="loginDiv">
+      <label>Email</label><input type="email" id="email" placeholder="teacher@school.com">
+      <label>Password</label><input type="password" id="password">
+      <button onclick="login()">Login</button>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard" class="hidden">
+      <div class="tab">
+        <button class="tablink active" onclick="openTab('attendance')">Attendance</button>
+        <button class="tablink" onclick="openTab('scores')">Scores</button>
+        <button class="tablink" onclick="openTab('remarks')">Remarks</button>
+      </div>
+
+      <div id="attendance" class="tabcontent active">
+        <label>Class</label><select id="attClass" onchange="loadStudents('attendance')"></select>
+        <label>Student</label><select id="attStudent"></select>
+        <label>Attendance (%)</label><input type="number" id="attValue">
+        <button class="submit" onclick="submitAttendance()">Save Attendance</button>
+      </div>
+
+      <div id="scores" class="tabcontent">
+        <label>Class</label><select id="scoreClass" onchange="loadStudents('scores')"></select>
+        <label>Student</label><select id="scoreStudent"></select>
+        <label>Subject</label><select id="scoreSubject"></select>
+        <label>Class Score (20%)</label><input type="number" id="classScore">
+        <label>Midterm Score (30%)</label><input type="number" id="midtermScore">
+        <label>Exam Score (50%)</label><input type="number" id="examScore">
+        <button class="submit" onclick="submitScores()">Save Scores</button>
+      </div>
+
+      <div id="remarks" class="tabcontent">
+        <label>Class</label><select id="remarkClass" onchange="loadStudents('remarks')"></select>
+        <label>Student</label><select id="remarkStudent"></select>
+        <label>Conduct</label>
+        <select id="conduct"></select>
+        <label>Teacher Remark</label><textarea id="teacherRemark" rows="3"></textarea>
+        <button class="submit" onclick="submitRemarks()">Save Remarks</button>
+      </div>
+
+      <div id="saveMsg"></div>
+    </div>
+  </div>
+
+<script>
+const BASE="http://localhost:3000";
+let TOKEN="";
+
+async function login(){
+  const email=document.getElementById("email").value;
+  const password=document.getElementById("password").value;
+  if(!email||!password){alert("Email & password required"); return;}
+  try{
+    const res=await fetch(BASE+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    const data=await res.json();
+    if(res.ok){TOKEN=data.token; document.getElementById("loginDiv").classList.add("hidden"); document.getElementById("dashboard").classList.remove("hidden"); await loadClasses(); await loadSubjects(); loadConductOptions();}
+    else alert(data.error);
+  }catch(e){console.error(e);alert("Login failed");}
+}
+
+function openTab(tabName){
+  document.querySelectorAll('.tabcontent').forEach(tc=>tc.classList.remove('active'));
+  document.querySelectorAll('.tablink').forEach(tb=>tb.classList.remove('active'));
+  document.getElementById(tabName).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// Load classes dynamically
+async function loadClasses(){
+  const classes=["CRECHE","NURS1","NURS2","KG1","KG2","STAGE1","STAGE2","STAGE3","STAGE4","STAGE5","STAGE6"];
+  ["attClass","scoreClass","remarkClass"].forEach(id=>{
+    const sel=document.getElementById(id);
+    sel.innerHTML='<option value="">Select class</option>';
+    classes.forEach(c=>sel.add(new Option(c,c)));
+  });
+}
+
+// Load students dynamically from backend
+async function loadStudents(tab){
+  const cls=document.getElementById(tab+"Class").value;
+  const sel=document.getElementById(tab+"Student");
+  sel.innerHTML='<option>Loading...</option>';
+  try{
+    const res=await fetch(BASE+'/api/teacher/attendance',{headers:{'Authorization':'Bearer '+TOKEN}});
+    const data=await res.json();
+    sel.innerHTML='<option value="">Select student</option>';
+    data.items.forEach(s=>{
+      if(!cls || s.includes(cls)) sel.add(new Option(s,s));
+    });
+  }catch(e){console.error(e); alert('Failed to load students');}
+}
+
+// Load subjects dynamically
+async function loadSubjects(){
+  const subjects=["Math","English","Science"];
+  const sel=document.getElementById("scoreSubject");
+  sel.innerHTML='<option value="">Select subject</option>';
+  subjects.forEach(sub=>sel.add(new Option(sub,sub)));
+}
+
+// Load conduct options
+function loadConductOptions(){
+  const options=["Excellent","Very Good","Good","Fair","Poor"];
+  const sel=document.getElementById("conduct");
+  sel.innerHTML='';
+  options.forEach(opt=>sel.add(new Option(opt,opt)));
+}
+
+// Submit functions
+function submitAttendance(){document.getElementById("saveMsg").innerText="Attendance saved!";}
+function submitScores(){document.getElementById("saveMsg").innerText="Scores saved!";}
+function submitRemarks(){document.getElementById("saveMsg").innerText="Remarks saved!";}
+</script>
+</body>
+</html>
