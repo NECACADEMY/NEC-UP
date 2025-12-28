@@ -7,6 +7,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 
 const app = express();
 
@@ -18,7 +19,7 @@ app.use((req, res, next) => {
     "script-src 'self'; " +
     "style-src 'self' 'unsafe-inline'; " +
     "img-src 'self' data:; " +
-    "connect-src 'self' http://localhost:3000;"
+    "connect-src 'self' https://nec-up.onrender.com;"
   );
   next();
 });
@@ -30,16 +31,20 @@ if (!mongoURI) {
   process.exit(1);
 }
 
-mongoose.connect(mongoURI)
+mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log('✅ MongoDB connected'))
   .catch(err => { console.error(err); process.exit(1); });
 
 // ---------------- MIDDLEWARE ----------------
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: '*', // Allow all origins; adjust if needed
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization']
+}));
 app.use(compression());
 app.use(express.json());
-app.use(express.static('public')); // Serve frontend
+app.use(express.static(path.join(__dirname, 'public'))); // Serve frontend
 
 // ---------------- RATE LIMITER ----------------
 const loginLimiter = rateLimit({
@@ -59,7 +64,7 @@ function auth(req, res, next) {
     req.user = decoded;
     req.role = decoded.role;
     next();
-  } catch {
+  } catch (err) {
     return res.status(403).json({ error: 'Invalid token' });
   }
 }
@@ -130,7 +135,10 @@ app.post('/api/auth/login', loginLimiter, async (req,res)=>{
     if(!valid) return res.status(401).json({error:'Invalid credentials'});
     const token = jwt.sign({id:user._id,role:user.role},process.env.JWT_SECRET,{expiresIn:'365d'});
     res.json({token,name:user.name,email:user.email,role:user.role});
-  }catch(err){ console.error(err); res.status(500).json({error:'Server error'});}
+  }catch(err){
+    console.error(err);
+    res.status(500).json({error:'Server error'});
+  }
 });
 
 // Get current user
@@ -239,6 +247,11 @@ app.get('/api/head/overview', auth, async(req,res)=>{
   if(req.role!=='head') return res.status(403).json({error:'Forbidden'});
   const students = await Student.find();
   res.json({students});
+});
+
+// ---------------- SERVE FRONTEND ----------------
+app.get('*', (req,res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // ---------------- START SERVER ----------------
