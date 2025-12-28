@@ -5,60 +5,114 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Newings School Management</title>
   <style>
-    body{font-family:Arial,sans-serif; padding:16px; max-width:900px; margin:auto; background:#0f7c3a; color:#fff;}
-    .box{border-radius:12px; padding:20px; margin-bottom:20px; background:#b0b0b0; color:#000;}
-    label,input,select,button,textarea{width:100%; margin-top:10px; padding:10px; border-radius:6px; border:2px solid red; font-size:16px;}
-    button.submit{background:#0f7c3a;color:#fff; font-weight:bold; cursor:pointer;}
-    .hidden{display:none;}
-    pre{background:#f0f0f0; padding:10px; border-radius:6px; overflow:auto; color:#000;}
-    h1,h2,h3,h4{color:#fff;}
+    body {
+      font-family: Arial, sans-serif;
+      padding: 16px;
+      max-width: 900px;
+      margin: auto;
+      background: #0f7c3a;
+      color: #fff;
+    }
+    .box {
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      background: #b0b0b0;
+      color: #000;
+    }
+    label, input, select, button, textarea {
+      width: 100%;
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 6px;
+      border: 2px solid red;
+      font-size: 16px;
+    }
+    button.submit {
+      background: #0f7c3a;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .hidden { display: none; }
+    pre {
+      background: #f0f0f0;
+      padding: 10px;
+      border-radius: 6px;
+      overflow: auto;
+      color: #000;
+    }
+    h1, h2, h3, h4 { color: #fff; }
   </style>
 </head>
 <body>
+
 <h1>Newings School Management</h1>
 
+<!-- LOGIN -->
 <div class="box" id="loginBox">
   <h3>Login</h3>
-  <label>Email</label><input type="email" id="email" placeholder="user@school.com">
-  <label>Password</label><input type="password" id="password">
+  <label>Email</label>
+  <input type="email" id="email" placeholder="user@school.com">
+  <label>Password</label>
+  <input type="password" id="password">
   <button id="loginBtn">Login</button>
   <button id="logoutBtn" class="hidden">Logout</button>
   <div>Token: <span id="token">-</span></div>
 </div>
 
+<!-- TEACHER DASHBOARD -->
 <div class="box hidden" id="teacherBox">
   <h3>Teacher Dashboard</h3>
-  <h4>Attendance</h4><div id="attendanceList"></div>
+  <h4>Attendance</h4>
+  <div id="attendanceList"></div>
   <button class="submit" id="submitAttendanceBtn">Submit Attendance</button>
 
-  <h4>Scores</h4><div id="scoresList"></div>
+  <h4>Scores</h4>
+  <div id="scoresList"></div>
   <button class="submit" id="submitScoresBtn">Submit Scores</button>
 
-  <h4>Attendance History</h4><div id="attendanceHistory"></div>
+  <h4>Attendance History</h4>
+  <div id="attendanceHistory"></div>
   <pre id="teacherOut">{}</pre>
 </div>
 
+<!-- ADMIN DASHBOARD -->
 <div class="box hidden" id="adminBox">
   <h3>Admin Dashboard</h3>
-  <label>Student Name</label><input type="text" id="studentName">
-  <label>Class</label><input type="text" id="studentClass">
+  <label>Student Name</label>
+  <input type="text" id="studentName">
+  <label>Class</label>
+  <input type="text" id="studentClass">
   <button class="submit" id="addStudentBtn">Add Student</button>
   <pre id="adminOut">{}</pre>
 </div>
 
+<!-- HEAD DASHBOARD -->
 <div class="box hidden" id="headBox">
   <h3>Head Dashboard</h3>
   <div id="headData"></div>
   <pre id="headOut">{}</pre>
 </div>
 
+<!-- ACCOUNTANT DASHBOARD -->
 <div class="box hidden" id="accountBox">
   <h3>Accountant Dashboard</h3>
   <button class="submit" id="loadFeesBtn">View Fees</button>
   <pre id="accountOut">{}</pre>
 </div>
 
-<!-- External JS -->
+<!-- APP SCRIPT -->
 <script src="app.js"></script>
+<script>
+  // Connect HTML buttons to app.js functions
+  document.getElementById('loginBtn').onclick = login;
+  document.getElementById('logoutBtn').onclick = logout;
+  document.getElementById('submitAttendanceBtn').onclick = submitAttendance;
+  document.getElementById('submitScoresBtn').onclick = submitScores;
+  document.getElementById('addStudentBtn').onclick = addStudent;
+  document.getElementById('loadFeesBtn').onclick = loadFees;
+</script>
+
 </body>
 </html>
