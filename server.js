@@ -31,9 +31,7 @@ if (!mongoURI) {
   process.exit(1);
 }
 
-mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log('✅ MongoDB connected'))
-  .catch(err => { console.error(err); process.exit(1); });
+
 
 // ---------------- MIDDLEWARE ----------------
 app.use(helmet());
