@@ -9,6 +9,21 @@ const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 
 const app = express();
+
+// ---------------- CSP HEADER ----------------
+app.use((req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; " +
+    "script-src 'self'; " +
+    "style-src 'self' 'unsafe-inline'; " +
+    "img-src 'self' data:; " +
+    "connect-src 'self' http://localhost:3000;"
+  );
+  next();
+});
+
+// ---------------- DATABASE ----------------
 const mongoURI = process.env.MONGODB_URI;
 if (!mongoURI) {
   console.error('❌ MONGODB_URI not found');
@@ -19,20 +34,21 @@ mongoose.connect(mongoURI)
   .then(() => console.log('✅ MongoDB connected'))
   .catch(err => { console.error(err); process.exit(1); });
 
+// ---------------- MIDDLEWARE ----------------
 app.use(helmet());
 app.use(cors());
 app.use(compression());
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static('public')); // Serve frontend
 
-// Rate limiter for login
+// ---------------- RATE LIMITER ----------------
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10,
   message: { error: 'Too many login attempts, try later.' }
 });
 
-
+// ---------------- AUTH MIDDLEWARE ----------------
 function auth(req, res, next) {
   const header = req.headers.authorization;
   if (!header) return res.status(401).json({ error: 'No token provided' });
@@ -48,7 +64,7 @@ function auth(req, res, next) {
   }
 }
 
-
+// ---------------- SCHEMAS ----------------
 const studentSchema = new mongoose.Schema({
   name: { type: String, required: true },
   class: { type: String, required: true },
@@ -67,6 +83,7 @@ const userSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', userSchema);
 
+// ---------------- CLASS SUBJECTS ----------------
 const CLASS_SUBJECTS = {
   CRECHE: [],
   NURS1: [],
@@ -81,6 +98,9 @@ const CLASS_SUBJECTS = {
   STAGE6: ["Math","English","Science","Social Studies","ICT","RME","Creative Arts","French"]
 };
 
+// ---------------- ROUTES ----------------
+
+// Setup admin
 app.post('/api/setup/admin', async (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) return res.status(400).json({ error: 'All fields required' });
@@ -99,7 +119,7 @@ app.post('/api/setup/admin', async (req, res) => {
   }
 });
 
-
+// Login
 app.post('/api/auth/login', loginLimiter, async (req,res)=>{
   const {email,password} = req.body;
   if(!email||!password) return res.status(400).json({error:'Email & password required'});
@@ -113,12 +133,13 @@ app.post('/api/auth/login', loginLimiter, async (req,res)=>{
   }catch(err){ console.error(err); res.status(500).json({error:'Server error'});}
 });
 
+// Get current user
 app.get('/api/auth/me', auth, async(req,res)=>{
   const user = await User.findById(req.user.id).select('-password');
   res.json(user);
 });
 
-
+// Admin: add student
 app.post('/api/admin/students', auth, async(req,res)=>{
   if(req.role!=='admin') return res.status(403).json({error:'Forbidden'});
   const {name,class:cls} = req.body;
@@ -129,18 +150,20 @@ app.post('/api/admin/students', auth, async(req,res)=>{
   }catch(err){ console.error(err); res.status(500).json({error:'Failed to add student'});}
 });
 
-
+// Teacher: get attendance
 app.get('/api/teacher/attendance', auth, async(req,res)=>{
   if(req.role!=='teacher') return res.status(403).json({error:'Forbidden'});
   const students = await Student.find().select('name class');
   res.json({items:students.map(s=>`${s.name} (${s.class})`)});
 });
 
+// Teacher: subjects for class
 app.get('/api/teacher/subjects/:class', auth, (req,res)=>{
   const cls = req.params.class.toUpperCase();
   res.json({subjects: CLASS_SUBJECTS[cls] || []});
 });
 
+// Teacher: submit attendance
 app.post('/api/teacher/homework', auth, async(req,res)=>{
   if(req.role!=='teacher') return res.status(403).json({error:'Forbidden'});
   const {attendance} = req.body;
@@ -155,6 +178,7 @@ app.post('/api/teacher/homework', auth, async(req,res)=>{
   res.json({status:'Attendance saved'});
 });
 
+// Teacher: submit scores
 app.post('/api/teacher/scores', auth, async(req,res)=>{
   if(req.role!=='teacher') return res.status(403).json({error:'Forbidden'});
   const {scores} = req.body;
@@ -167,6 +191,7 @@ app.post('/api/teacher/scores', auth, async(req,res)=>{
   res.json({status:'Scores saved'});
 });
 
+// Teacher: submit remarks
 app.post('/api/teacher/remarks', auth, async(req,res)=>{
   if(req.role!=='teacher') return res.status(403).json({error:'Forbidden'});
   const {student, conduct, remark} = req.body;
@@ -177,6 +202,7 @@ app.post('/api/teacher/remarks', auth, async(req,res)=>{
   res.json({status:'Remark saved'});
 });
 
+// Teacher: create assignment
 app.post('/api/teacher/assignment', auth, async(req,res)=>{
   if(req.role!=='teacher') return res.status(403).json({error:'Forbidden'});
   const {title, cls, options} = req.body;
@@ -189,12 +215,14 @@ app.post('/api/teacher/assignment', auth, async(req,res)=>{
   res.json({status:'Assignment created'});
 });
 
+// Student: get assignments
 app.get('/api/student/assignments/:name', auth, async(req,res)=>{
   const s = await Student.findOne({name:req.params.name});
   if(!s) return res.status(404).json({error:'Student not found'});
   res.json({assignments:s.assignments});
 });
 
+// Student: submit assignment
 app.post('/api/student/assignments/submit', auth, async(req,res)=>{
   const {student,title,selectedOption} = req.body;
   const s = await Student.findOne({name:student});
@@ -206,12 +234,13 @@ app.post('/api/student/assignments/submit', auth, async(req,res)=>{
   res.json({status:'Assignment submitted'});
 });
 
-
+// Head: overview
 app.get('/api/head/overview', auth, async(req,res)=>{
   if(req.role!=='head') return res.status(403).json({error:'Forbidden'});
   const students = await Student.find();
   res.json({students});
 });
 
+// ---------------- START SERVER ----------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, ()=>console.log(`Server running at http://localhost:${PORT}`));
