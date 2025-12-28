@@ -1,5 +1,5 @@
 // =====================
-// app.js for Newings School Management
+// app.js for Newings School Management (CSP-Compliant)
 // =====================
 
 const BASE = "https://nec-up.onrender.com"; // Render backend
@@ -29,22 +29,15 @@ async function safeFetch(url, options = {}) {
 async function login() {
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value.trim();
-  if (!email || !password) {
-    alert('Email & password required');
-    return;
-  }
+  if (!email || !password) { alert('Email & password required'); return; }
 
-  const data = await safeFetch(BASE + '/api/auth/login', {
+  const data = await safeFetch(`${BASE}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password })
   });
   if (!data) return;
-
-  if (data.error) {
-    alert(data.error);
-    return;
-  }
+  if (data.error) { alert(data.error); return; }
 
   TOKEN = data.token;
   localStorage.setItem('token', TOKEN);
@@ -54,11 +47,10 @@ async function login() {
   await showDashboard(data.role);
 }
 
-async function logout() {
+function logout() {
   TOKEN = '';
   localStorage.removeItem('token');
   document.getElementById('token').textContent = '-';
-  document.getElementById('logoutBtn').classList.add('hidden');
   document.querySelectorAll('#teacherBox,#adminBox,#headBox,#accountBox').forEach(b => b.classList.add('hidden'));
   document.getElementById('loginBox').classList.remove('hidden');
 }
@@ -69,23 +61,23 @@ async function showDashboard(role) {
   if (role === 'teacher') { await loadTeacher(); document.getElementById('teacherBox').classList.remove('hidden'); }
   if (role === 'admin') document.getElementById('adminBox').classList.remove('hidden');
   if (role === 'head') { await loadHead(); document.getElementById('headBox').classList.remove('hidden'); }
-  if (role === 'accountant') document.getElementById('accountBox').classList.remove('hidden');
+  if (role === 'accountant') { await loadFees(); document.getElementById('accountBox').classList.remove('hidden'); }
 }
 
 // ----------------- TEACHER -----------------
 async function loadTeacher() {
-  const data = await safeFetch(BASE + '/api/teacher/attendance', {
+  const data = await safeFetch(`${BASE}/api/teacher/attendance`, {
     headers: { 'Authorization': 'Bearer ' + TOKEN }
   });
   if (!data) return;
   students = data.items || [];
   renderAttendance();
   renderScores();
-  loadAttendanceHistory();
 }
 
 function renderAttendance() {
-  const container = document.getElementById('attendanceList'); container.innerHTML = '';
+  const container = document.getElementById('attendanceList'); 
+  container.innerHTML = '';
   students.forEach(s => {
     const row = document.createElement('div');
     row.innerHTML = `${s} <select><option>Present</option><option>Absent</option></select>`;
@@ -94,7 +86,8 @@ function renderAttendance() {
 }
 
 function renderScores() {
-  const container = document.getElementById('scoresList'); container.innerHTML = '';
+  const container = document.getElementById('scoresList'); 
+  container.innerHTML = '';
   students.forEach(s => {
     const row = document.createElement('div');
     row.innerHTML = `${s} <input type="number" placeholder="Math"> <input type="number" placeholder="English">`;
@@ -110,7 +103,7 @@ async function submitAttendance() {
     attendance[name] = status;
   });
 
-  const data = await safeFetch(BASE + '/api/teacher/homework', {
+  const data = await safeFetch(`${BASE}/api/teacher/homework`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN },
     body: JSON.stringify({ attendance })
@@ -126,10 +119,12 @@ async function submitScores() {
     const name = div.childNodes[0].textContent.trim();
     const math = div.querySelector('input[placeholder="Math"]').value;
     const eng = div.querySelector('input[placeholder="English"]').value;
-    scores[name] = {}; if (math) scores[name]['Math'] = Number(math); if (eng) scores[name]['English'] = Number(eng);
+    scores[name] = {};
+    if (math) scores[name]['Math'] = Number(math);
+    if (eng) scores[name]['English'] = Number(eng);
   });
 
-  const data = await safeFetch(BASE + '/api/teacher/scores', {
+  const data = await safeFetch(`${BASE}/api/teacher/scores`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN },
     body: JSON.stringify({ scores })
@@ -139,26 +134,13 @@ async function submitScores() {
   alert('Scores saved!');
 }
 
-async function loadAttendanceHistory() {
-  const data = await safeFetch(BASE + '/api/teacher/attendance/history', {
-    headers: { 'Authorization': 'Bearer ' + TOKEN }
-  });
-  if (!data) return;
-  const container = document.getElementById('attendanceHistory'); container.innerHTML = '';
-  (data.history || []).forEach(h => {
-    const div = document.createElement('div');
-    div.textContent = `${new Date(h.date).toLocaleDateString()}: ${h.name} - ${h.status}`;
-    container.appendChild(div);
-  });
-}
-
 // ----------------- ADMIN -----------------
 async function addStudent() {
   const name = document.getElementById('studentName').value.trim();
   const cls = document.getElementById('studentClass').value.trim();
   if (!name || !cls) { alert('Name & class required'); return; }
 
-  const data = await safeFetch(BASE + '/api/admin/students', {
+  const data = await safeFetch(`${BASE}/api/admin/students`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN },
     body: JSON.stringify({ name, class: cls })
@@ -172,11 +154,12 @@ async function addStudent() {
 
 // ----------------- HEAD -----------------
 async function loadHead() {
-  const data = await safeFetch(BASE + '/api/head/overview', {
+  const data = await safeFetch(`${BASE}/api/head/overview`, {
     headers: { 'Authorization': 'Bearer ' + TOKEN }
   });
   if (!data) return;
-  const container = document.getElementById('headData'); container.innerHTML = '';
+  const container = document.getElementById('headData'); 
+  container.innerHTML = '';
   (data.students || []).forEach(s => {
     const div = document.createElement('div');
     div.textContent = `${s.name} (${s.class}) - Attendance:${s.attendance.length}, Scores:${JSON.stringify(s.scores)}`;
@@ -187,19 +170,29 @@ async function loadHead() {
 
 // ----------------- ACCOUNTANT -----------------
 async function loadFees() {
-  const data = await safeFetch(BASE + '/api/account/fees', {
+  const data = await safeFetch(`${BASE}/api/account/fees`, {
     headers: { 'Authorization': 'Bearer ' + TOKEN }
   });
   if (!data) return;
   document.getElementById('accountOut').textContent = JSON.stringify(data, null, 2);
 }
 
+// ----------------- EVENT LISTENERS -----------------
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('loginBtn').onclick = login;
+  document.getElementById('logoutBtn').onclick = logout;
+  document.getElementById('submitAttendanceBtn').onclick = submitAttendance;
+  document.getElementById('submitScoresBtn').onclick = submitScores;
+  document.getElementById('addStudentBtn').onclick = addStudent;
+  document.getElementById('loadFeesBtn').onclick = loadFees;
+});
+
 // ----------------- AUTO LOGIN -----------------
-window.onload = async () => {
+window.addEventListener('load', async () => {
   if (!TOKEN) return;
-  const data = await safeFetch(BASE + '/api/auth/me', {
+  const data = await safeFetch(`${BASE}/api/auth/me`, {
     headers: { 'Authorization': 'Bearer ' + TOKEN }
   });
-  if (!data) { logout(); return; }
+  if (!data || data.error) { logout(); return; }
   await showDashboard(data.role);
-};
+});
