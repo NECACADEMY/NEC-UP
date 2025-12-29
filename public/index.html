@@ -64,15 +64,19 @@
 <!-- TEACHER DASHBOARD -->
 <div class="box hidden" id="teacherBox">
   <h3>Teacher Dashboard</h3>
+  
+  <!-- Class selector -->
+  <div id="teacherClassSelector"></div>
+  
   <h4>Attendance</h4>
   <div id="attendanceList"></div>
   <button class="submit" id="submitAttendanceBtn">Submit Attendance</button>
 
-  <h4>Scores</h4>
+  <h4>Scores / Remarks</h4>
   <div id="scoresList"></div>
   <button class="submit" id="submitScoresBtn">Submit Scores</button>
 
-  <h4>Attendance History</h4>
+  <h4>Attendance & Scores History</h4>
   <div id="attendanceHistory"></div>
   <pre id="teacherOut">{}</pre>
 </div>
@@ -83,7 +87,7 @@
   <label>Student Name</label>
   <input type="text" id="studentName">
   <label>Class</label>
-  <input type="text" id="studentClass">
+  <input type="text" id="studentClass" placeholder="e.g., Crèche, Stage 1">
   <button class="submit" id="addStudentBtn">Add Student</button>
   <pre id="adminOut">{}</pre>
 </div>
