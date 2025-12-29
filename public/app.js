@@ -12,18 +12,9 @@ async function safeFetch(url, options = {}) {
   try {
     const res = await fetch(url, options);
     const text = await res.text();
-    try {
-      return JSON.parse(text);
-    } catch {
-      console.error("Non-JSON response:", text);
-      alert("Server error occurred. Check backend logs.");
-      return null;
-    }
-  } catch (err) {
-    console.error("Fetch error:", err);
-    alert("Network or server error.");
-    return null;
-  }
+    try { return JSON.parse(text); } 
+    catch { console.error("Non-JSON response:", text); alert("Server error occurred."); return null; }
+  } catch (err) { console.error("Fetch error:", err); alert("Network or server error."); return null; }
 }
 
 // ----------------- LOGIN -----------------
@@ -89,6 +80,7 @@ function renderClassSelector() {
   const container = document.getElementById('teacherClassSelector');
   if (!container) {
     const div = document.createElement('div');
+    div.id = 'teacherClassSelector';
     div.innerHTML = `
       <label>Select Class</label>
       <select id="classSelect">
@@ -125,7 +117,7 @@ function renderAttendance() {
   });
 }
 
-// Render scores input
+// Render scores input dynamically
 function renderScores() {
   const container = document.getElementById('scoresList'); 
   container.innerHTML = '';

@@ -43,6 +43,9 @@
       color: #000;
     }
     h1, h2, h3, h4 { color: #fff; }
+    #teacherClassSelector select {
+      margin-top: 0;
+    }
   </style>
 </head>
 <body>
@@ -56,8 +59,8 @@
   <input type="email" id="email" placeholder="user@school.com">
   <label>Password</label>
   <input type="password" id="password">
-  <button id="loginBtn">Login</button>
-  <button id="logoutBtn" class="hidden">Logout</button>
+  <button id="loginBtn" class="submit">Login</button>
+  <button id="logoutBtn" class="hidden submit">Logout</button>
   <div>Token: <span id="token">-</span></div>
 </div>
 
@@ -65,7 +68,7 @@
 <div class="box hidden" id="teacherBox">
   <h3>Teacher Dashboard</h3>
   
-  <!-- Class selector -->
+  <!-- Class selector dynamically inserted -->
   <div id="teacherClassSelector"></div>
   
   <h4>Attendance</h4>
@@ -85,9 +88,9 @@
 <div class="box hidden" id="adminBox">
   <h3>Admin Dashboard</h3>
   <label>Student Name</label>
-  <input type="text" id="studentName">
+  <input type="text" id="studentName" placeholder="Full Name">
   <label>Class</label>
-  <input type="text" id="studentClass" placeholder="e.g., Crèche, Stage 1">
+  <input type="text" id="studentClass" placeholder="Crèche, Nursery 1, Stage 1...">
   <button class="submit" id="addStudentBtn">Add Student</button>
   <pre id="adminOut">{}</pre>
 </div>

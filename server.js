@@ -13,6 +13,8 @@ const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
+const studentsData = require('./students'); // <-- our bulk students file
+
 const app = express();
 
 // ---------------- CSP HEADER ----------------
@@ -80,10 +82,18 @@ function auth(req, res, next) {
 const studentSchema = new mongoose.Schema({
   name: { type: String, required: true },
   class: { type: String, required: true },
-  attendance: [{ date: Date, status: String }],
-  scores: Object,
-  remarks: [{ date: Date, teacher: String, conduct: String, remark: String }],
-  assignments: [{ date: Date, title: String, options: [String], selectedOption: String }]
+  attendance: [
+    { date: { type: Date, default: Date.now }, status: String, teacher: String, className: String }
+  ],
+  scores: [
+    { date: { type: Date, default: Date.now }, teacher: String, className: String, data: Object }
+  ],
+  remarks: [
+    { date: Date, teacher: String, conduct: String, remark: String }
+  ],
+  assignments: [
+    { date: Date, title: String, options: [String], selectedOption: String }
+  ]
 });
 const Student = mongoose.model('Student', studentSchema);
 
@@ -146,13 +156,15 @@ app.get('/api/auth/me', auth, async(req,res)=>{
   }
 });
 
-// Admin or Head: add student
+// ---------------- ADMIN ROUTES ----------------
+
+// Admin: Add student
 app.post('/api/admin/students', auth, async(req,res)=>{
   if(req.role!=='admin') return res.status(403).json({error:'Forbidden'});
   const {name,class:cls} = req.body;
   if(!name||!cls) return res.status(400).json({error:'Name & class required'});
   try{
-    const student = await Student.create({name,class:cls,attendance:[],scores:{},remarks:[],assignments:[]});
+    const student = await Student.create({name,class:cls,attendance:[],scores:[],remarks:[],assignments:[]});
     res.json({status:'Student added',student});
   }catch(err){ 
     console.error('Add student error:', err); 
@@ -160,7 +172,19 @@ app.post('/api/admin/students', auth, async(req,res)=>{
   }
 });
 
-// Admin or Head: add teacher/head
+// Admin: Bulk add students
+app.post('/api/admin/bulk-add-students', auth, async (req, res) => {
+  if(req.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const inserted = await Student.insertMany(studentsData, { ordered: false }); // skip duplicates
+    res.json({ status: 'Students added', count: inserted.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to add students' });
+  }
+});
+
+// Admin/Head: Add staff
 app.post('/api/admin/staff', auth, async (req, res) => {
   if(req.role !== 'admin' && req.role !== 'head') return res.status(403).json({ error: 'Forbidden' });
 
@@ -182,6 +206,106 @@ app.post('/api/admin/staff', auth, async (req, res) => {
   }
 });
 
+// ---------------- TEACHER ROUTES ----------------
+app.get('/api/teacher/attendance', auth, async (req, res) => {
+  if(req.role !== 'teacher') return res.status(403).json({ error: 'Forbidden' });
+  const cls = req.query.class;
+  if (!cls) return res.status(400).json({ error: 'Class required' });
+
+  try {
+    const students = await Student.find({ class: cls }).select('name class attendance scores');
+    res.json({ items: students });
+  } catch(err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.post('/api/teacher/attendance', auth, async (req, res) => {
+  if(req.role !== 'teacher') return res.status(403).json({ error: 'Forbidden' });
+  const { class: cls, attendance } = req.body;
+  if (!cls || !attendance) return res.status(400).json({ error: 'Class & attendance required' });
+
+  try {
+    const updates = [];
+    for (const [name, status] of Object.entries(attendance)) {
+      updates.push(
+        Student.findOneAndUpdate(
+          { name, class: cls },
+          { $push: { attendance: { status, className: cls, teacher: req.user.id } } },
+          { new: true }
+        )
+      );
+    }
+    await Promise.all(updates);
+    res.json({ status: 'Attendance saved' });
+  } catch(err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.post('/api/teacher/scores', auth, async (req, res) => {
+  if(req.role !== 'teacher') return res.status(403).json({ error: 'Forbidden' });
+  const { class: cls, scores } = req.body;
+  if (!cls || !scores) return res.status(400).json({ error: 'Class & scores required' });
+
+  try {
+    const updates = [];
+    for (const [name, data] of Object.entries(scores)) {
+      updates.push(
+        Student.findOneAndUpdate(
+          { name, class: cls },
+          { $push: { scores: { data, className: cls, teacher: req.user.id } } },
+          { new: true }
+        )
+      );
+    }
+    await Promise.all(updates);
+    res.json({ status: 'Scores saved' });
+  } catch(err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.get('/api/teacher/history', auth, async (req, res) => {
+  if(req.role !== 'teacher') return res.status(403).json({ error: 'Forbidden' });
+  const cls = req.query.class;
+  if (!cls) return res.status(400).json({ error: 'Class required' });
+
+  try {
+    const students = await Student.find({ class: cls }).select('name attendance scores');
+    const history = students.map(s => ({
+      name: s.name,
+      attendance: s.attendance.filter(a => a.className === cls),
+      scores: s.scores.filter(sc => sc.className === cls)
+    }));
+    res.json({ items: history });
+  } catch(err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ---------------- HEADMASTER ROUTES ----------------
+app.get('/api/head/overview', auth, async (req, res) => {
+  if(req.role !== 'head') return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const students = await Student.find();
+    res.json({ students });
+  } catch(err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ---------------- ACCOUNTANT ROUTES ----------------
+app.get('/api/account/fees', auth, async (req,res)=>{
+  if(req.role !== 'accountant') return res.status(403).json({ error:'Forbidden' });
+  res.json({ fees: "Functionality to implement" });
+});
+
 // ---------------- SERVE FRONTEND ----------------
 app.get('*', (req,res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -191,4 +315,4 @@ app.get('*', (req,res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, ()=>console.log(`✅ Server running at http://localhost:${PORT}`));
 
-module.exports = { User };
+module.exports = { User, Student };
