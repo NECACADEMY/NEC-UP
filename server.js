@@ -45,17 +45,17 @@ mongoose.connect(mongoURI)
 // ---------------- MIDDLEWARE ----------------
 app.use(helmet());
 app.use(cors({
-  origin: '*', // Allow all origins, adjust for production
+  origin: '*',
   methods: ['GET','POST','PUT','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization']
 }));
 app.use(compression());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public'))); // Serve frontend
+app.use(express.static(path.join(__dirname, 'public')));
 
 // ---------------- RATE LIMITER ----------------
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   max: 10,
   message: { error: 'Too many login attempts, try later.' }
 });
@@ -94,21 +94,6 @@ const userSchema = new mongoose.Schema({
   role: { type: String, enum: ['admin','teacher','head','accountant'], required: true }
 });
 const User = mongoose.model('User', userSchema);
-
-// ---------------- CLASS SUBJECTS ----------------
-const CLASS_SUBJECTS = {
-  CRECHE: [],
-  NURS1: [],
-  NURS2: ["Numeracy","Literacy","Creative Arts"],
-  KG1: ["Numeracy","Literacy","Creative Arts"],
-  KG2: ["Numeracy","Literacy","Creative Arts"],
-  STAGE1: ["Math","English","Science","Social Studies","ICT","RME","Creative Arts","French"],
-  STAGE2: ["Math","English","Science","Social Studies","ICT","RME","Creative Arts","French"],
-  STAGE3: ["Math","English","Science","Social Studies","ICT","RME","Creative Arts","French"],
-  STAGE4: ["Math","English","Science","Social Studies","ICT","RME","Creative Arts","French"],
-  STAGE5: ["Math","English","Science","Social Studies","ICT","RME","Creative Arts","French"],
-  STAGE6: ["Math","English","Science","Social Studies","ICT","RME","Creative Arts","French"]
-};
 
 // ---------------- ROUTES ----------------
 
@@ -161,7 +146,7 @@ app.get('/api/auth/me', auth, async(req,res)=>{
   }
 });
 
-// Admin: add student
+// Admin or Head: add student
 app.post('/api/admin/students', auth, async(req,res)=>{
   if(req.role!=='admin') return res.status(403).json({error:'Forbidden'});
   const {name,class:cls} = req.body;
@@ -175,11 +160,27 @@ app.post('/api/admin/students', auth, async(req,res)=>{
   }
 });
 
-// ---------------- MORE ROUTES ----------------
-// Teacher attendance, scores, remarks, assignments
-// Student assignments
-// Head overview
-// (Keep your existing route code here as you already have it)
+// Admin or Head: add teacher/head
+app.post('/api/admin/staff', auth, async (req, res) => {
+  if(req.role !== 'admin' && req.role !== 'head') return res.status(403).json({ error: 'Forbidden' });
+
+  const { name, email, password, role } = req.body;
+  if (!name || !email || !password || !role) return res.status(400).json({ error: 'All fields required' });
+  if(!['teacher','head'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
+
+  try {
+    const exists = await User.findOne({ email });
+    if (exists) return res.status(409).json({ error: 'User with this email already exists' });
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const staff = await User.create({ name, email, password: hashedPassword, role });
+
+    res.json({ status: `${role} added`, staff });
+  } catch (err) {
+    console.error('Add staff error:', err);
+    res.status(500).json({ error: 'Failed to add staff' });
+  }
+});
 
 // ---------------- SERVE FRONTEND ----------------
 app.get('*', (req,res) => {
