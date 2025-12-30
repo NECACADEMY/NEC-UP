@@ -1,119 +1,142 @@
-Name,Class
-JAPHET DZIDULA MATSE,Stage 1
-SHADRACK AMENUKU,Stage 1
-RICHMOND ASARE,Stage 1
-JEFFERY GAMEDZI,Stage 1
-WISDOM SEYNO MENSAH,Stage 1
-JEREMIAH ADDEY,Stage 1
-DANIEL NHYIRA ADU,Stage 1
-KEIZIA TIGNANKPA,Stage 1
-FAITH EDOH,Stage 1
-GIFTY MANSAH,Stage 1
-JEMIMA ADDEY,Stage 1
-PRINCE ASANTE,Stage 1
-PEREZ ANNANG ADJEI,Stage 1
-SAMUEL NYAMEKYE AMOAH,Stage 1
-BAMBA FATIMATA,Stage 1
-EDWARD KORANKYE INKUM,Stage 1
-RICHMOND OSEI,Stage 2
-MICHAEL AMENUKU,Stage 2
-ELORM MENSAH,Stage 2
-SENYO SEMAWU,Stage 2
-BOAZ AKPORH ADJEI,Stage 2
-MICHAEL BOTWE,Stage 2
-JOSEPH KWAME YEBOAH,Stage 2
-GABRIEL BOTWE,Stage 2
-FLORENCE BATHOW,Stage 2
-PRINCESS TONI,Stage 2
-GODSGIFT AWUKU,Stage 2
-SARAH MONYO,Stage 2
-CINDY OKYERE ARTHOR,Stage 2
-ALEX BRAKO SEKYI AYIVOR,Stage 3
-MICHAEL DZIDULA AYESU ZACHARIAH,Stage 3
-JOSHUA NII ADDEY,Stage 3
-ELIZABETH OWUSUANSAH,Stage 3
-ANGEL BOAKYEWAA YEBOAH,Stage 4
-EMMANUEL TONI,Stage 4
-BLESSING SAM,Stage 4
-SENA SEMAWU,Stage 4
-EVANS MORDZIFA TORNYIE,Stage 5
-ABIGAEL NAYRAM,Stage 5
-ELISEE GOUNHOUNSOUNOU,Stage 6
-ELIZABETH GOUNHOUNSOUNOU,Stage 6
-ELYON NUKUNU ZOE,Stage 6
-ANGELA TONI,Nursery 1
-HAIDA SEIDU,Nursery 1
-CHARLES KORLY,Nursery 1
-MICHEALINA ADOM BUDU,Nursery 1
-MICHEAL NHYRI BUDU,Nursery 1
-NANA OSEI BOTWE,Nursery 1
-OSBON A.B. ABBEY,Nursery 1
-LISA SEYRAM KPOGO,Nursery 1
-CHRISTOPHER ELOH,Nursery 1
-LOLI MIRACLE ETORNAM,Nursery 1
-ARIANA TAWIAH,Nursery 1
-ZANETOR GENEVEIVE AYESU-ZACHARIAH,Nursery 1
-RABBI MENSAH,Nursery 1
-MARVILOUS ATIMAKA,Nursery 1
-GEOVANNI SENYO,Nursery 1
-ISSABELLA ASEDA NKUM,Nursery 1
-IMURAN DRAMANI,Nursery 1
-STANLEY OBENG,Nursery 1
-GLORIA SEDEM WOEKPOR,Nursery 1
-AGNES NYAMEKYE,Nursery 1
-GEORGE MAWUPEMOR KLU,Nursery 1
-ZELENE OLERKI TETTEH,Nursery 1
-RICHLOVE OPPONG,Nursery 1
-VERA ADIME ADU,Nursery 1
-VICTORIA NYAMEKYE,Nursery 1
-MABEL AMANKWA,Nursery 1
-JUDE ABOTSI,Nursery 2
-EMPRESS EWOENAM ADDO SUNU,Nursery 2
-DESTINY AMPEH,Nursery 2
-LORD ELIKEM AYIVOR,Nursery 2
-GABRIEL KOFI TAWIAH,Nursery 2
-ELISA YAYRA WOEKPOR,Nursery 2
-ROLAND HORLU,Nursery 2
-JONES OWUSU YEBOAH,Nursery 2
-GABRIEL KEKELI DORLA,Nursery 2
-LORDINA ELIKPLIM AYIVOR,Nursery 2
-GODSWILL AWUKU,Nursery 2
-SAMUEL AKAHO,Nursery 2
-REDEEMER DELADEM WORDI,Nursery 2
-MUTAWAKIL ABDUL AZIZ,Nursery 2
-FELICIA ADU SAM,Nursery 2
-KINGSFRED KWEKU MIREKU,Nursery 2
-VIVIAN APPIAH,Nursery 2
-ABDUL MUTAKIR IBRAHIM,Nursery 2
-HENRY MAMAH,Nursery 2
-RUTH MENSAH,Nursery 2
-ISSABELLA ASASO,Nursery 2
-EMMANUEL ABBEY,Nursery 2
-ELLEN NUTIFAFA,Nursery 2
-JAYDEN NKUNIM NYARKO,Kindergarten 1
-CLEMENT BOTWE,Kindergarten 1
-KELVIN AMPEH,Kindergarten 1
-SIMON SETOR MENSAH,Kindergarten 1
-KELVIN ADZOGBLE,Kindergarten 1
-SEBASTIAN ASARE,Kindergarten 1
-PETER DZOTEPE,Kindergarten 1
-HAWA JADE FUSENI,Kindergarten 1
-REGINA ABBEY,Kindergarten 1
-SAMUEL YAW ABOAGY,Kindergarten 1
-DESMOND TEYE YEBOAH,Kindergarten 1
-SEIDU SAMSUM,Kindergarten 1
-RASHFORD KWEKU FIAMEDOKO,Crèche
-SEYRAM AMENUKU,Crèche
-CLEMENT ADOMKYEI ARTHUR,Crèche
-ADUM SOLOMON,Crèche
-TAIBA DRAMANI,Crèche
-ISAAC NANA MONYO,Crèche
-RUTH AKU YEGBEY,Crèche
-JUSLINA AYORKOR ADJEYEY,Crèche
-ISAAC ADUSEI,Crèche
-GABRIEL MAWULORM TONATOR,Crèche
-IVAN DELA ABREKU,Crèche
-DAVID ELORM ALORGBAH,Crèche
-GEORGE SELASE BATAWILLIE,Crèche
-HAYFORD KWEKU KYERE,Crèche
-JEMIMA HORLU,Crèche
+require('dotenv').config();
+const mongoose = require('mongoose');
+const Student = require('./models/Student');
+
+const students = [
+  { name: "JAPHET DZIDULA MATSE", class: "Stage 1" },
+  { name: "SHADRACK AMENUKU", class: "Stage 1" },
+  { name: "RICHMOND ASARE", class: "Stage 1" },
+  { name: "JEFFERY GAMEDZI", class: "Stage 1" },
+  { name: "WISDOM SEYNO MENSAH", class: "Stage 1" },
+  { name: "JEREMIAH ADDEY", class: "Stage 1" },
+  { name: "DANIEL NHYIRA ADU", class: "Stage 1" },
+  { name: "KEIZIA TIGNANKPA", class: "Stage 1" },
+  { name: "FAITH EDOH", class: "Stage 1" },
+  { name: "GIFTY MANSAH", class: "Stage 1" },
+  { name: "JEMIMA ADDEY", class: "Stage 1" },
+  { name: "PRINCE ASANTE", class: "Stage 1" },
+  { name: "PEREZ ANNANG ADJEI", class: "Stage 1" },
+  { name: "SAMUEL NYAMEKYE AMOAH", class: "Stage 1" },
+  { name: "BAMBA FATIMATA", class: "Stage 1" },
+  { name: "EDWARD KORANKYE INKUM", class: "Stage 1" },
+
+  { name: "RICHMOND OSEI", class: "Stage 2" },
+  { name: "MICHAEL AMENUKU", class: "Stage 2" },
+  { name: "ELORM MENSAH", class: "Stage 2" },
+  { name: "SENYO SEMAWU", class: "Stage 2" },
+  { name: "BOAZ AKPORH ADJEI", class: "Stage 2" },
+  { name: "MICHAEL BOTWE", class: "Stage 2" },
+  { name: "JOSEPH KWAME YEBOAH", class: "Stage 2" },
+  { name: "GABRIEL BOTWE", class: "Stage 2" },
+  { name: "FLORENCE BATHOW", class: "Stage 2" },
+  { name: "PRINCESS TONI", class: "Stage 2" },
+  { name: "GODSGIFT AWUKU", class: "Stage 2" },
+  { name: "SARAH MONYO", class: "Stage 2" },
+  { name: "CINDY OKYERE ARTHOR", class: "Stage 2" },
+
+  { name: "ALEX BRAKO SEKYI AYIVOR", class: "Stage 3" },
+  { name: "MICHAEL DZIDULA AYESU ZACHARIAH", class: "Stage 3" },
+  { name: "JOSHUA NII ADDEY", class: "Stage 3" },
+  { name: "ELIZABETH OWUSUANSAH", class: "Stage 3" },
+
+  { name: "ANGEL BOAKYEWAA YEBOAH", class: "Stage 4" },
+  { name: "EMMANUEL TONI", class: "Stage 4" },
+  { name: "BLESSING SAM", class: "Stage 4" },
+  { name: "SENA SEMAWU", class: "Stage 4" },
+
+  { name: "EVANS MORDZIFA TORNYIE", class: "Stage 5" },
+  { name: "ABIGAEL NAYRAM", class: "Stage 5" },
+
+  { name: "ELISEE GOUNHOUNSOUNOU", class: "Stage 6" },
+  { name: "ELIZABETH GOUNHOUNSOUNOU", class: "Stage 6" },
+  { name: "ELYON NUKUNU ZOE", class: "Stage 6" },
+
+  { name: "ANGELA TONI", class: "Nursery 1" },
+  { name: "HAIDA SEIDU", class: "Nursery 1" },
+  { name: "CHARLES KORLY", class: "Nursery 1" },
+  { name: "MICHEALINA ADOM BUDU", class: "Nursery 1" },
+  { name: "MICHEAL NHYRI BUDU", class: "Nursery 1" },
+  { name: "NANA OSEI BOTWE", class: "Nursery 1" },
+  { name: "OSBON A.B. ABBEY", class: "Nursery 1" },
+  { name: "LISA SEYRAM KPOGO", class: "Nursery 1" },
+  { name: "CHRISTOPHER ELOH", class: "Nursery 1" },
+  { name: "LOLI MIRACLE ETORNAM", class: "Nursery 1" },
+  { name: "ARIANA TAWIAH", class: "Nursery 1" },
+  { name: "ZANETOR GENEVEIVE AYESU-ZACHARIAH", class: "Nursery 1" },
+  { name: "RABBI MENSAH", class: "Nursery 1" },
+  { name: "MARVILOUS ATIMAKA", class: "Nursery 1" },
+  { name: "GEOVANNI SENYO", class: "Nursery 1" },
+  { name: "ISSABELLA ASEDA NKUM", class: "Nursery 1" },
+  { name: "IMURAN DRAMANI", class: "Nursery 1" },
+  { name: "STANLEY OBENG", class: "Nursery 1" },
+  { name: "GLORIA SEDEM WOEKPOR", class: "Nursery 1" },
+  { name: "AGNES NYAMEKYE", class: "Nursery 1" },
+  { name: "GEORGE MAWUPEMOR KLU", class: "Nursery 1" },
+  { name: "ZELENE OLERKI TETTEH", class: "Nursery 1" },
+  { name: "RICHLOVE OPPONG", class: "Nursery 1" },
+  { name: "VERA ADIME ADU", class: "Nursery 1" },
+  { name: "VICTORIA NYAMEKYE", class: "Nursery 1" },
+  { name: "MABEL AMANKWA", class: "Nursery 1" },
+
+  { name: "JUDE ABOTSI", class: "Nursery 2" },
+  { name: "EMPRESS EWOENAM ADDO SUNU", class: "Nursery 2" },
+  { name: "DESTINY AMPEH", class: "Nursery 2" },
+  { name: "LORD ELIKEM AYIVOR", class: "Nursery 2" },
+  { name: "GABRIEL KOFI TAWIAH", class: "Nursery 2" },
+  { name: "ELISA YAYRA WOEKPOR", class: "Nursery 2" },
+  { name: "ROLAND HORLU", class: "Nursery 2" },
+  { name: "JONES OWUSU YEBOAH", class: "Nursery 2" },
+  { name: "GABRIEL KEKELI DORLA", class: "Nursery 2" },
+  { name: "LORDINA ELIKPLIM AYIVOR", class: "Nursery 2" },
+  { name: "GODSWILL AWUKU", class: "Nursery 2" },
+  { name: "SAMUEL AKAHO", class: "Nursery 2" },
+  { name: "REDEEMER DELADEM WORDI", class: "Nursery 2" },
+  { name: "MUTAWAKIL ABDUL AZIZ", class: "Nursery 2" },
+  { name: "FELICIA ADU SAM", class: "Nursery 2" },
+  { name: "KINGSFRED KWEKU MIREKU", class: "Nursery 2" },
+  { name: "VIVIAN APPIAH", class: "Nursery 2" },
+  { name: "ABDUL MUTAKIR IBRAHIM", class: "Nursery 2" },
+  { name: "HENRY MAMAH", class: "Nursery 2" },
+  { name: "RUTH MENSAH", class: "Nursery 2" },
+  { name: "ISSABELLA ASASO", class: "Nursery 2" },
+  { name: "EMMANUEL ABBEY", class: "Nursery 2" },
+
+  { name: "JAYDEN NKUNIM NYARKO", class: "Kindergarten 1" },
+  { name: "CLEMENT BOTWE", class: "Kindergarten 1" },
+  { name: "KELVIN AMPEH", class: "Kindergarten 1" },
+  { name: "SIMON SETOR MENSAH", class: "Kindergarten 1" },
+  { name: "KELVIN ADZOGBLE", class: "Kindergarten 1" },
+  { name: "SEBASTIAN ASARE", class: "Kindergarten 1" },
+  { name: "PETER DZOTEPE", class: "Kindergarten 1" },
+  { name: "HAWA JADE FUSENI", class: "Kindergarten 1" },
+  { name: "REGINA ABBEY", class: "Kindergarten 1" },
+  { name: "SAMUEL YAW ABOAGY", class: "Kindergarten 1" },
+  { name: "DESMOND TEYE YEBOAH", class: "Kindergarten 1" },
+  { name: "SEIDU SAMSUM", class: "Kindergarten 1" },
+
+  { name: "RASHFORD KWEKU FIAMEDOKO", class: "Crèche" },
+  { name: "SEYRAM AMENUKU", class: "Crèche" },
+  { name: "CLEMENT ADOMKYEI ARTHUR", class: "Crèche" },
+  { name: "ADUM SOLOMON", class: "Crèche" },
+  { name: "TAIBA DRAMANI", class: "Crèche" },
+  { name: "ISAAC NANA MONYO", class: "Crèche" },
+  { name: "RUTH AKU YEGBEY", class: "Crèche" },
+  { name: "JUSLINA AYORKOR ADJEYEY", class: "Crèche" },
+  { name: "ISAAC ADUSEI", class: "Crèche" },
+  { name: "GABRIEL MAWULORM TONATOR", class: "Crèche" },
+  { name: "IVAN DELA ABREKU", class: "Crèche" },
+  { name: "DAVID ELORM ALORGBAH", class: "Crèche" },
+  { name: "GEORGE SELASE BATAWILLIE", class: "Crèche" },
+  { name: "HAYFORD KWEKU KYERE", class: "Crèche" },
+  { name: "JEMIMA HORLU", class: "Crèche" }
+];
+
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(async () => {
+    console.log("MongoDB connected");
+    await Student.deleteMany({});
+    await Student.insertMany(students);
+    console.log("Students seeded successfully!");
+    mongoose.disconnect();
+  })
+  .catch(err => console.error(err));

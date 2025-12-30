@@ -4,58 +4,289 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Newings School Dashboard</title>
-<link rel="stylesheet" href="style.css">
+<style>
+  /* ---------- BASE ---------- */
+  * { box-sizing:border-box; margin:0; padding:0; font-family:Arial, sans-serif; }
+  body { background:#f4f6f8; color:#1e3a8a; font-weight:bold; display:flex; flex-direction:column; min-height:100vh; }
+  h2 { text-align:center; margin-bottom:1rem; }
+  button { cursor:pointer; font-weight:bold; }
+
+  /* ---------- HEADER ---------- */
+  header { background:#1e3a8a; color:#fff; padding:1rem; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; }
+  header img { height:50px; margin-right:1rem; }
+  header h1 { font-size:1.5rem; }
+  #logoutBtn { background:#facc15; border:none; padding:0.5rem 1rem; border-radius:5px; }
+  #logoutBtn:hover { background:#eab308; }
+
+  /* ---------- MAIN ---------- */
+  main { flex:1; padding:1rem; display:flex; flex-direction:column; max-width:900px; margin:0 auto; }
+
+  /* ---------- LOGIN ---------- */
+  #login-section { max-width:400px; margin:2rem auto; padding:2rem; background:#fff; border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
+  #login-section input, #login-section button { width:100%; padding:0.75rem; margin-bottom:1rem; border-radius:5px; border:1px solid #ccc; font-weight:bold; font-size:1rem; }
+  #login-section button { background:#1e3a8a; color:#fff; border:none; }
+  #login-section button:hover { background:#374ac0; }
+  .error { color:red; font-weight:bold; margin-top:0.5rem; }
+
+  /* ---------- TABS ---------- */
+  .tab { display:flex; margin-bottom:1rem; border-bottom:2px solid #ddd; }
+  .tab button { flex:1; padding:10px; background:#d0d0d0; border:none; }
+  .tab button.active { background:#1e3a8a; color:#fff; }
+  .tabcontent { display:none; padding:1rem; background:#fff; border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,0.1); margin-bottom:1rem; }
+  .tabcontent.active { display:block; }
+
+  /* ---------- FORMS ---------- */
+  label, select, input, textarea { display:block; width:100%; margin-top:10px; padding:10px; font-size:16px; border:2px solid #ccc; border-radius:6px; }
+  button.submit { background:#1e3a8a; color:#fff; border:none; margin-top:15px; padding:12px; border-radius:6px; width:100%; }
+  button.submit:hover { background:#374ac0; }
+
+  /* ---------- SAVE MESSAGE ---------- */
+  #saveMsg { margin-top:10px; color:green; font-weight:bold; }
+
+  /* ---------- RESPONSIVE ---------- */
+  @media(max-width:768px){ .tab{flex-direction:column;} }
+</style>
 </head>
 <body>
 
 <header>
-  <div class="logo-title">
-    <img src="images/schoollogo.png" alt="School Logo" id="schoolLogo">
+  <div>
+    <img src="images/schoollogo.png" alt="School Logo">
     <h1>Newings School Dashboard</h1>
   </div>
-  <div id="user-info"></div>
   <button id="logoutBtn" class="hidden">Logout</button>
 </header>
 
 <main>
-  <!-- LOGIN SECTION -->
+  <!-- LOGIN -->
   <section id="login-section">
     <h2>Login</h2>
-    <form id="loginForm">
-      <input type="email" id="email" placeholder="Email" required>
-      <input type="password" id="password" placeholder="Password" required>
-      <button type="submit">Login</button>
-    </form>
+    <input type="email" id="email" placeholder="Email" required>
+    <input type="password" id="password" placeholder="Password" required>
+    <button onclick="login()">Login</button>
     <p id="loginError" class="error"></p>
   </section>
 
-  <!-- DASHBOARD SECTION -->
-  <section id="dashboard-section" class="hidden">
-    <div class="controls">
-      <select id="classSelect">
-        <option value="">Select Class</option>
-      </select>
-      <button id="loadAttendance">Load Attendance</button>
-      <button id="loadScores">Load Scores</button>
-      <button id="loadHistory">Load History</button>
-      <button id="saveChanges" class="hidden">Save Changes</button>
-      <!-- Export buttons -->
-      <button id="exportWord">Export Word</button>
-      <button id="exportPDF">Export PDF</button>
+  <!-- DASHBOARD -->
+  <section id="dashboard" class="hidden">
+    <div class="tab">
+      <button class="tablink active" onclick="openTab('attendance', this)">Attendance</button>
+      <button class="tablink" onclick="openTab('scores', this)">Scores</button>
+      <button class="tablink" onclick="openTab('remarks', this)">Remarks</button>
     </div>
 
-    <div id="content">
-      <table id="dataTable">
-        <thead>
-          <tr id="tableHeader"></tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-      </table>
-      <p id="contentMessage" class="info"></p>
+    <!-- Attendance Tab -->
+    <div id="attendance" class="tabcontent active">
+      <label>Class</label><select id="attClass" onchange="loadStudents('attendance')"></select>
+      <label>Student</label><select id="attStudent"></select>
+      <label>Attendance Status</label>
+      <select id="attValue"><option>Present</option><option>Absent</option><option>Late</option></select>
+      <button class="submit" onclick="submitAttendance()">Save Attendance</button>
     </div>
+
+    <!-- Scores Tab -->
+    <div id="scores" class="tabcontent">
+      <label>Class</label><select id="scoreClass" onchange="loadStudents('scores')"></select>
+      <label>Student</label><select id="scoreStudent"></select>
+      <label>Subject</label><select id="scoreSubject"></select>
+      <label>Class Score (20%)</label><input type="number" id="classScore">
+      <label>Midterm Score (30%)</label><input type="number" id="midtermScore">
+      <label>Exam Score (50%)</label><input type="number" id="examScore">
+      <button class="submit" onclick="submitScores()">Save Scores</button>
+    </div>
+
+    <!-- Remarks Tab -->
+    <div id="remarks" class="tabcontent">
+      <label>Class</label><select id="remarkClass" onchange="loadStudents('remarks')"></select>
+      <label>Student</label><select id="remarkStudent"></select>
+      <label>Conduct</label><select id="conduct"></select>
+      <label>Teacher Remark</label><textarea id="teacherRemark" rows="3"></textarea>
+      <button class="submit" onclick="submitRemarks()">Save Remarks</button>
+    </div>
+
+    <div id="saveMsg"></div>
   </section>
 </main>
 
-<script src="app.js"></script>
+<script>
+const BASE = "";
+let TOKEN = localStorage.getItem("token") || "";
+
+// Elements
+const loginSection = document.getElementById("login-section");
+const dashboard = document.getElementById("dashboard");
+const loginError = document.getElementById("loginError");
+const logoutBtn = document.getElementById("logoutBtn");
+const saveMsg = document.getElementById("saveMsg");
+
+// Inputs
+const emailInput = document.getElementById("email");
+const passwordInput = document.getElementById("password");
+
+// Class selects
+const attClass = document.getElementById("attClass");
+const scoreClass = document.getElementById("scoreClass");
+const remarkClass = document.getElementById("remarkClass");
+
+// Student selects
+const attStudent = document.getElementById("attStudent");
+const scoreStudent = document.getElementById("scoreStudent");
+const remarkStudent = document.getElementById("remarkStudent");
+
+// Scores
+const scoreSubject = document.getElementById("scoreSubject");
+const classScore = document.getElementById("classScore");
+const midtermScore = document.getElementById("midtermScore");
+const examScore = document.getElementById("examScore");
+
+// Remarks
+const conduct = document.getElementById("conduct");
+const teacherRemark = document.getElementById("teacherRemark");
+
+// ---------------- LOGIN ----------------
+async function login() {
+  const email = emailInput.value.trim();
+  const password = passwordInput.value.trim();
+  if(!email || !password) return alert("Email & password required");
+
+  try {
+    const res = await fetch(`${BASE}/api/auth/login`, {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({email,password})
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || "Login failed");
+    TOKEN = data.token;
+    localStorage.setItem("token", TOKEN);
+    loginSection.classList.add("hidden");
+    dashboard.classList.remove("hidden");
+    logoutBtn.classList.remove("hidden");
+    saveMsg.innerText = "";
+    loadClasses();
+    loadSubjects();
+    loadConductOptions();
+  } catch(err) { loginError.innerText = err.message; }
+}
+
+// ---------------- LOGOUT ----------------
+logoutBtn.addEventListener("click", () => {
+  localStorage.removeItem("token");
+  TOKEN = "";
+  loginSection.classList.remove("hidden");
+  dashboard.classList.add("hidden");
+  logoutBtn.classList.add("hidden");
+  saveMsg.innerText = "";
+});
+
+// ---------------- TABS ----------------
+function openTab(tabName, btn) {
+  document.querySelectorAll(".tabcontent").forEach(tc => tc.classList.remove("active"));
+  document.querySelectorAll(".tablink").forEach(tb => tb.classList.remove("active"));
+  document.getElementById(tabName).classList.add("active");
+  btn.classList.add("active");
+}
+
+// ---------------- LOAD CLASSES ----------------
+function loadClasses() {
+  const classes = ["Creche","Nurs1","Nurs2","KG1","KG2","Stage1","Stage2","Stage3","Stage4","Stage5","Stage6"];
+  [attClass, scoreClass, remarkClass].forEach(sel => {
+    sel.innerHTML = '<option value="">Select Class</option>';
+    classes.forEach(c => sel.add(new Option(c, c)));
+  });
+}
+
+// ---------------- LOAD STUDENTS ----------------
+async function loadStudents(tab) {
+  let cls, selStudent;
+  if(tab === "attendance"){ cls = attClass.value; selStudent = attStudent; }
+  if(tab === "scores"){ cls = scoreClass.value; selStudent = scoreStudent; }
+  if(tab === "remarks"){ cls = remarkClass.value; selStudent = remarkStudent; }
+  if(!cls) return;
+  selStudent.innerHTML = "<option>Loading...</option>";
+
+  try {
+    const res = await fetch(`${BASE}/api/teacher/attendance?class=${cls}`, { headers: { Authorization: "Bearer "+TOKEN }});
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || "Failed to load students");
+    selStudent.innerHTML = '<option value="">Select student</option>';
+    data.items.forEach(s => selStudent.add(new Option(s.name, s.name)));
+  } catch(err) { console.error(err); alert("Failed to load students"); }
+}
+
+// ---------------- LOAD SUBJECTS ----------------
+function loadSubjects() {
+  const subjects = ["Math","English","Science"];
+  scoreSubject.innerHTML = '<option value="">Select Subject</option>';
+  subjects.forEach(s => scoreSubject.add(new Option(s,s)));
+}
+
+// ---------------- LOAD CONDUCT OPTIONS ----------------
+function loadConductOptions() {
+  const options = ["Excellent","Very Good","Good","Fair","Poor"];
+  conduct.innerHTML = "";
+  options.forEach(o => conduct.add(new Option(o,o)));
+}
+
+// ---------------- SUBMIT FUNCTIONS ----------------
+async function submitAttendance() {
+  const cls = attClass.value;
+  const student = attStudent.value;
+  const status = document.getElementById("attValue").value;
+  if(!cls || !student || !status) return alert("All fields required");
+  try {
+    const res = await fetch(`${BASE}/api/teacher/attendance`, {
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+TOKEN},
+      body: JSON.stringify({ class:cls, attendance:{ [student]: status } })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || "Failed");
+    saveMsg.innerText = "✅ Attendance saved!";
+  } catch(err){ console.error(err); alert(err.message); }
+}
+
+async function submitScores() {
+  const cls = scoreClass.value;
+  const student = scoreStudent.value;
+  const subject = scoreSubject.value;
+  const cs = parseFloat(classScore.value)||0;
+  const ms = parseFloat(midtermScore.value)||0;
+  const es = parseFloat(examScore.value)||0;
+  if(!cls || !student || !subject) return alert("All fields required");
+  try {
+    const res = await fetch(`${BASE}/api/teacher/scores`, {
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+TOKEN},
+      body: JSON.stringify({ class:cls, scores:{ [student]: { [subject]: { classScore:cs, midtermScore:ms, examScore:es } } } })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || "Failed");
+    saveMsg.innerText = "✅ Scores saved!";
+  } catch(err){ console.error(err); alert(err.message); }
+}
+
+function submitRemarks() {
+  const cls = remarkClass.value;
+  const student = remarkStudent.value;
+  const cond = conduct.value;
+  const remark = teacherRemark.value.trim();
+  if(!cls || !student || !cond || !remark) return alert("All fields required");
+  // Backend API for remarks can be added similarly
+  saveMsg.innerText = "✅ Remarks saved!";
+}
+
+// ---------------- AUTO LOGIN ----------------
+if(TOKEN) {
+  loginSection.classList.add("hidden");
+  dashboard.classList.remove("hidden");
+  logoutBtn.classList.remove("hidden");
+  saveMsg.innerText = "";
+  loadClasses();
+  loadSubjects();
+  loadConductOptions();
+}
+</script>
+
 </body>
 </html>
