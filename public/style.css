@@ -1,0 +1,272 @@
+/* =========================
+   style.css for Newings Dashboard
+   ========================= */
+
+/* ---------- RESET & BASE ---------- */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  background: #f4f6f8;
+  color: #ff0000; /* Bright red font for visibility */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-weight: bold; /* Bold for readability */
+  font-size: 1rem;
+}
+
+/* ---------- HEADER ---------- */
+header {
+  background: #1e3a8a;
+  color: #fff;
+  padding: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo-title {
+  display: flex;
+  align-items: center;
+}
+
+header img#schoolLogo {
+  height: 50px;
+  width: auto;
+  margin-right: 1rem;
+}
+
+header h1 {
+  font-size: 1.75rem; /* Larger heading for mobile */
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+header #user-info {
+  margin-right: 1rem;
+}
+
+header button {
+  background: #facc15;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+header button:hover {
+  background: #eab308;
+}
+
+/* ---------- MAIN ---------- */
+main {
+  flex: 1;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- LOGIN FORM ---------- */
+#login-section {
+  max-width: 400px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+#login-section h2 {
+  margin-bottom: 1rem;
+  text-align: center;
+  color: #ff0000;
+  font-weight: bold;
+  font-size: 1.5rem;
+}
+
+#login-section input {
+  width: 100%;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+#login-section button {
+  width: 100%;
+  padding: 0.75rem;
+  background: #1e3a8a;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+#login-section button:hover {
+  background: #374ac0;
+}
+
+.error, .info {
+  color: #ff0000;
+  font-weight: bold;
+  margin-top: 0.5rem;
+  font-size: 1rem;
+}
+
+/* ---------- DASHBOARD CONTROLS ---------- */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.controls select,
+.controls button {
+  padding: 0.5rem;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  flex: 1 1 150px;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.controls button {
+  background: #1e3a8a;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+
+.controls button:hover {
+  background: #374ac0;
+}
+
+#saveChanges {
+  background: #10b981;
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+#saveChanges:hover {
+  background: #059669;
+}
+
+/* ---------- TABLE ---------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  overflow-x: auto;
+}
+
+thead {
+  background: #1e3a8a;
+  color: #fff;
+}
+
+th, td {
+  padding: 0.75rem;
+  text-align: left;
+  border: 1px solid #ccc;
+  font-weight: bold;
+  font-size: 1rem;
+  color: #ff0000; /* Red text for readability */
+}
+
+tr:nth-child(even) {
+  background: #f9fafb;
+}
+
+tr:hover {
+  background: #e0e7ff;
+}
+
+td input, td select {
+  width: 100%;
+  padding: 0.25rem;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+  font-weight: bold;
+  text-align: center;
+}
+
+/* ---------- COLOR-CODED ATTENDANCE ---------- */
+td input.present, td select.present {
+  background-color: lightgreen;
+}
+
+td input.absent, td select.absent {
+  background-color: lightcoral;
+}
+
+td input.late, td select.late {
+  background-color: lightyellow;
+}
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 768px) {
+  header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  header h1 {
+    font-size: 1.5rem;
+  }
+
+  .controls {
+    flex-direction: column;
+  }
+
+  table, thead, tbody, th, td, tr {
+    display: block;
+  }
+
+  thead tr {
+    display: none;
+  }
+
+  tr {
+    margin-bottom: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 0.5rem;
+  }
+
+  td {
+    border: none;
+    display: flex;
+    justify-content: space-between;
+    padding: 0.25rem 0;
+  }
+
+  td::before {
+    content: attr(data-label);
+    font-weight: bold;
+    flex: 1;
+  }
+
+  td input, td select {
+    flex: 2;
+  }
+}

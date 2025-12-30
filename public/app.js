@@ -1,336 +1,230 @@
-// =====================
-// app.js for Newings School Management (CSP-Compliant)
-// =====================
+// ======================
+// Fused app.js for Newings School Dashboard
+// ======================
 
-const BASE = "https://nec-up.onrender.com";
-let TOKEN = localStorage.getItem('token') || '';
-let students = [];
-let currentClass = 'Crèche';
+const loginSection = document.getElementById('login-section');
+const dashboardSection = document.getElementById('dashboard-section');
+const loginForm = document.getElementById('loginForm');
+const emailInput = document.getElementById('email');
+const passwordInput = document.getElementById('password');
+const loginError = document.getElementById('loginError');
+const userInfo = document.getElementById('user-info');
+const logoutBtn = document.getElementById('logoutBtn');
 
-// ----------------- UTILITY -----------------
-async function safeFetch(url, options = {}) {
+const classSelect = document.getElementById('classSelect');
+const loadAttendanceBtn = document.getElementById('loadAttendance');
+const loadScoresBtn = document.getElementById('loadScores');
+const loadHistoryBtn = document.getElementById('loadHistory');
+const saveChangesBtn = document.getElementById('saveChanges');
+
+const tableHeader = document.getElementById('tableHeader');
+const tableBody = document.getElementById('tableBody');
+const contentMessage = document.getElementById('contentMessage');
+
+let token = localStorage.getItem('token');
+let currentClass = '';
+let currentMode = ''; // 'attendance' | 'scores' | 'history'
+let currentData = []; // Loaded students data
+let changes = {};     // Track changes for saving
+
+// ---------------- LOGIN ----------------
+loginForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  loginError.textContent = '';
+
   try {
-    const res = await fetch(url, options);
-    const text = await res.text();
-    try {
-      return JSON.parse(text);
-    } catch {
-      console.error("Non-JSON response:", text);
-      alert("Server error occurred.");
-      return null;
-    }
-  } catch (err) {
-    console.error("Fetch error:", err);
-    alert("Network or server error.");
-    return null;
-  }
-}
-
-// ----------------- LOGOUT -----------------
-function logout() {
-  TOKEN = '';
-  localStorage.removeItem('token');
-  document.getElementById('token').textContent = '-';
-
-  document
-    .querySelectorAll('#teacherBox,#adminBox,#headBox,#accountBox')
-    .forEach(b => b.classList.add('hidden'));
-
-  document.getElementById('logoutBtn').classList.add('hidden');
-  document.getElementById('loginBox').classList.remove('hidden');
-}
-
-// ----------------- LOGIN -----------------
-async function login() {
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value.trim();
-
-  if (!email || !password) {
-    alert('Email & password required');
-    return;
-  }
-
-  const data = await safeFetch(`${BASE}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password })
-  });
-
-  if (!data) return;
-  if (data.error) {
-    alert(data.error);
-    return;
-  }
-
-  TOKEN = data.token;
-  localStorage.setItem('token', TOKEN);
-
-  document.getElementById('token').textContent = TOKEN;
-  document.getElementById('loginBox').classList.add('hidden');
-  document.getElementById('logoutBtn').classList.remove('hidden');
-
-  await showDashboard(data.role);
-}
-
-// ----------------- DASHBOARD -----------------
-async function showDashboard(role) {
-  document
-    .querySelectorAll('#teacherBox,#adminBox,#headBox,#accountBox')
-    .forEach(b => b.classList.add('hidden'));
-
-  document.getElementById('logoutBtn').classList.remove('hidden');
-
-  if (role === 'teacher') {
-    await loadTeacher(currentClass);
-    document.getElementById('teacherBox').classList.remove('hidden');
-  }
-
-  if (role === 'admin') {
-    document.getElementById('adminBox').classList.remove('hidden');
-  }
-
-  if (role === 'head') {
-    await loadHead();
-    document.getElementById('headBox').classList.remove('hidden');
-  }
-
-  if (role === 'accountant') {
-    await loadFees();
-    document.getElementById('accountBox').classList.remove('hidden');
-  }
-}
-
-// ----------------- TEACHER -----------------
-async function loadTeacher(cls) {
-  currentClass = cls || currentClass;
-
-  const data = await safeFetch(
-    `${BASE}/api/teacher/attendance?class=${encodeURIComponent(currentClass)}`,
-    { headers: { Authorization: 'Bearer ' + TOKEN } }
-  );
-
-  if (!data) return;
-
-  students = data.items || [];
-  renderClassSelector();
-  renderAttendance();
-  renderScores();
-  renderHistory();
-}
-
-// Class selector
-function renderClassSelector() {
-  if (document.getElementById('classSelect')) return;
-
-  const div = document.createElement('div');
-  div.innerHTML = `
-    <label>Select Class</label>
-    <select id="classSelect">
-      <option>Crèche</option>
-      <option>Nursery 1</option>
-      <option>Nursery 2</option>
-      <option>Kindergarten 1</option>
-      <option>Kindergarten 2</option>
-      <option>Stage 1</option>
-      <option>Stage 2</option>
-      <option>Stage 3</option>
-      <option>Stage 4</option>
-      <option>Stage 5</option>
-      <option>Stage 6</option>
-    </select>
-    <button class="submit" id="changeClassBtn">Load Class</button>
-  `;
-
-  document.getElementById('teacherBox').prepend(div);
-
-  document.getElementById('changeClassBtn').onclick = () => {
-    loadTeacher(document.getElementById('classSelect').value);
-  };
-}
-
-// Attendance
-function renderAttendance() {
-  const container = document.getElementById('attendanceList');
-  container.innerHTML = '';
-
-  students.forEach(s => {
-    const row = document.createElement('div');
-    row.innerHTML = `
-      ${s.name}
-      <select>
-        <option>Present</option>
-        <option>Absent</option>
-      </select>
-    `;
-    container.appendChild(row);
-  });
-}
-
-// Scores
-function renderScores() {
-  const container = document.getElementById('scoresList');
-  container.innerHTML = '';
-
-  students.forEach(s => {
-    const row = document.createElement('div');
-
-    if (['Crèche', 'Nursery 1'].includes(currentClass)) {
-      row.innerHTML = `${s.name} <input placeholder="Remark">`;
-    } else if (currentClass === 'Nursery 2') {
-      row.innerHTML = `${s.name}
-        <input type="number" placeholder="Classwork 60%">
-        <input type="number" placeholder="Exam 40%">`;
-    } else if (['Kindergarten 1', 'Kindergarten 2'].includes(currentClass)) {
-      row.innerHTML = `${s.name}
-        <input type="number" placeholder="Classwork 50%">
-        <input type="number" placeholder="Exam 50%">`;
-    } else {
-      row.innerHTML = `${s.name}
-        <input type="number" placeholder="Classwork 20%">
-        <input type="number" placeholder="Midterm 30%">
-        <input type="number" placeholder="Exam 50%">`;
-    }
-
-    container.appendChild(row);
-  });
-}
-
-// Submit attendance
-async function submitAttendance() {
-  const attendance = {};
-
-  document.querySelectorAll('#attendanceList div').forEach(div => {
-    const name = div.firstChild.textContent.trim();
-    attendance[name] = div.querySelector('select').value;
-  });
-
-  const data = await safeFetch(`${BASE}/api/teacher/attendance`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: 'Bearer ' + TOKEN
-    },
-    body: JSON.stringify({ class: currentClass, attendance })
-  });
-
-  if (!data) return;
-  alert('Attendance saved');
-}
-
-// Submit scores
-async function submitScores() {
-  const scores = {};
-
-  document.querySelectorAll('#scoresList div').forEach(div => {
-    const name = div.firstChild.textContent.trim();
-    scores[name] = {};
-
-    div.querySelectorAll('input').forEach(inp => {
-      if (inp.value) {
-        scores[name][inp.placeholder] = isNaN(inp.value)
-          ? inp.value
-          : Number(inp.value);
-      }
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ email: emailInput.value, password: passwordInput.value })
     });
-  });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Login failed');
 
-  const data = await safeFetch(`${BASE}/api/teacher/scores`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: 'Bearer ' + TOKEN
-    },
-    body: JSON.stringify({ class: currentClass, scores })
-  });
+    token = data.token;
+    localStorage.setItem('token', token);
+    loginSection.classList.add('hidden');
+    dashboardSection.classList.remove('hidden');
+    logoutBtn.classList.remove('hidden');
+    userInfo.textContent = `${data.name} (${data.role})`;
+    loadClasses();
+  } catch(err) {
+    loginError.textContent = err.message;
+  }
+});
 
-  if (!data) return;
-  alert('Scores saved');
+// ---------------- LOGOUT ----------------
+logoutBtn.addEventListener('click', () => {
+  localStorage.removeItem('token');
+  token = null;
+  loginSection.classList.remove('hidden');
+  dashboardSection.classList.add('hidden');
+  tableBody.innerHTML = '';
+  tableHeader.innerHTML = '';
+  saveChangesBtn.classList.add('hidden');
+});
+
+// ---------------- LOAD CLASSES ----------------
+function loadClasses() {
+  const classes = ['Stage 1','Stage 2','Stage 3','Stage 4','Stage 5','Stage 6','Nursery 1','Nursery 2','Kindergarten 1','Crèche'];
+  classSelect.innerHTML = '<option value="">Select Class</option>';
+  classes.forEach(cls => {
+    const option = document.createElement('option');
+    option.value = cls;
+    option.textContent = cls;
+    classSelect.appendChild(option);
+  });
 }
 
-// History
-async function renderHistory() {
-  const data = await safeFetch(
-    `${BASE}/api/teacher/history?class=${encodeURIComponent(currentClass)}`,
-    { headers: { Authorization: 'Bearer ' + TOKEN } }
-  );
+// ---------------- LOAD DATA ----------------
+async function loadData(mode){
+  currentMode = mode;
+  const cls = classSelect.value;
+  if(!cls){
+    contentMessage.textContent='Please select a class.';
+    return;
+  }
+  currentClass = cls;
+  changes = {};
+  saveChangesBtn.classList.add('hidden');
+  contentMessage.textContent = '';
 
-  if (!data) return;
-  document.getElementById('attendanceHistory').textContent =
-    JSON.stringify(data.items, null, 2);
+  let endpoint = '';
+  if(mode==='attendance') endpoint='/api/teacher/attendance';
+  else if(mode==='scores') endpoint='/api/teacher/scores';
+  else endpoint='/api/teacher/history';
+
+  try {
+    const res = await fetch(`${endpoint}?class=${cls}`, {
+      headers:{ 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Failed to load data');
+
+    currentData = data.items || data;
+    renderTable(mode);
+  } catch(err){
+    contentMessage.textContent = err.message;
+  }
 }
 
-// ----------------- ADMIN -----------------
-async function addStudent() {
-  const name = document.getElementById('studentName').value.trim();
-  const cls = document.getElementById('studentClass').value.trim();
+// ---------------- RENDER TABLE ----------------
+function renderTable(type){
+  tableHeader.innerHTML = '';
+  tableBody.innerHTML = '';
+  saveChangesBtn.classList.add('hidden');
 
-  if (!name || !cls) {
-    alert('Name & class required');
+  if(!currentData.length){
+    contentMessage.textContent='No data available';
     return;
   }
 
-  const data = await safeFetch(`${BASE}/api/admin/students`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: 'Bearer ' + TOKEN
-    },
-    body: JSON.stringify({ name, class: cls })
+  // Headers
+  const headers = ['Name'];
+  if(type==='attendance') headers.push('Attendance');
+  else if(type==='scores') headers.push('Scores (JSON)');
+  else headers.push('Attendance','Scores');
+
+  headers.forEach(h=>{
+    const th = document.createElement('th');
+    th.textContent = h;
+    th.style.fontWeight = 'bold';
+    th.style.fontSize = '16px';
+    tableHeader.appendChild(th);
   });
 
-  if (!data) return;
-  alert('Student added');
+  // Rows
+  currentData.forEach(item=>{
+    const tr = document.createElement('tr');
+    const tdName = document.createElement('td');
+    tdName.textContent = item.name;
+    tdName.style.fontWeight='bold';
+    tdName.style.color='red';
+    tr.appendChild(tdName);
 
-  document.getElementById('studentName').value = '';
-  document.getElementById('studentClass').value = '';
+    if(type==='attendance'){
+      const td = document.createElement('td');
+      const select = document.createElement('select');
+      ['Present','Absent','Late'].forEach(opt=>{
+        const option = document.createElement('option');
+        option.value = opt;
+        option.textContent = opt;
+        if(item.attendance?.length) option.selected = item.attendance[item.attendance.length-1].status===opt;
+        select.appendChild(option);
+      });
+      select.addEventListener('change', ()=>{
+        changes[item.name] = select.value;
+        saveChangesBtn.classList.remove('hidden');
+      });
+      td.appendChild(select);
+      td.style.fontWeight='bold';
+      td.style.color='red';
+      tr.appendChild(td);
+    } else if(type==='scores'){
+      const td = document.createElement('td');
+      const input = document.createElement('input');
+      input.type='text';
+      input.value = JSON.stringify(item.scores?.[item.scores.length-1]?.data || {});
+      input.style.fontWeight='bold';
+      input.style.color='red';
+      input.addEventListener('input', ()=>{
+        try{ changes[item.name]=JSON.parse(input.value); saveChangesBtn.classList.remove('hidden'); }catch(err){}
+      });
+      td.appendChild(input);
+      tr.appendChild(td);
+    } else { // history
+      const tdAtt = document.createElement('td');
+      tdAtt.textContent = item.attendance.map(a=>`${a.date.split('T')[0]}:${a.status}`).join(', ');
+      tdAtt.style.fontWeight='bold';
+      tdAtt.style.color='red';
+      tr.appendChild(tdAtt);
+
+      const tdSc = document.createElement('td');
+      tdSc.textContent = item.scores.map(s=>JSON.stringify(s.data)).join('; ');
+      tdSc.style.fontWeight='bold';
+      tdSc.style.color='red';
+      tr.appendChild(tdSc);
+    }
+
+    tableBody.appendChild(tr);
+  });
 }
 
-// ----------------- HEAD -----------------
-async function loadHead() {
-  const data = await safeFetch(`${BASE}/api/head/overview`, {
-    headers: { Authorization: 'Bearer ' + TOKEN }
-  });
+// ---------------- SAVE CHANGES ----------------
+saveChangesBtn.addEventListener('click', async ()=>{
+  if(!currentClass || !currentMode || !Object.keys(changes).length) return;
+  const endpoint = currentMode==='attendance' ? '/api/teacher/attendance' : '/api/teacher/scores';
 
-  if (!data) return;
+  let payload = { class: currentClass, [currentMode]: changes };
 
-  const container = document.getElementById('headData');
-  container.innerHTML = '';
+  try{
+    const res = await fetch(endpoint,{
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Failed to save');
 
-  data.students.forEach(s => {
-    const div = document.createElement('div');
-    div.textContent = `${s.name} (${s.class})`;
-    container.appendChild(div);
-  });
-}
-
-// ----------------- ACCOUNTANT -----------------
-async function loadFees() {
-  await safeFetch(`${BASE}/api/account/fees`, {
-    headers: { Authorization: 'Bearer ' + TOKEN }
-  });
-}
-
-// ----------------- EVENTS -----------------
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('loginBtn').onclick = login;
-  document.getElementById('logoutBtn').onclick = logout;
-  document.getElementById('submitAttendanceBtn').onclick = submitAttendance;
-  document.getElementById('submitScoresBtn').onclick = submitScores;
-  document.getElementById('addStudentBtn').onclick = addStudent;
-});
-
-// ----------------- AUTO LOGIN -----------------
-window.addEventListener('load', async () => {
-  if (!TOKEN) return;
-
-  const data = await safeFetch(`${BASE}/api/auth/me`, {
-    headers: { Authorization: 'Bearer ' + TOKEN }
-  });
-
-  if (!data || data.error) {
-    logout();
-    return;
+    contentMessage.textContent='Changes saved successfully!';
+    saveChangesBtn.classList.add('hidden');
+    changes={};
+    loadData(currentMode);
+  }catch(err){
+    contentMessage.textContent=err.message;
   }
-
-  await showDashboard(data.role);
 });
+
+// ---------------- BUTTON EVENTS ----------------
+loadAttendanceBtn.addEventListener('click', ()=>loadData('attendance'));
+loadScoresBtn.addEventListener('click', ()=>loadData('scores'));
+loadHistoryBtn.addEventListener('click', ()=>loadData('history'));
+
+// ---------------- AUTO LOGIN IF TOKEN EXISTS ----------------
+if(token){
+  loginSection.classList.add('hidden');
+  dashboardSection.classList.remove('hidden');
+  logoutBtn.classList.remove('hidden');
+  userInfo.textContent='Loading...';
+  loadClasses();
+}
