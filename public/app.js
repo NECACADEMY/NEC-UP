@@ -1,7 +1,8 @@
 // ======================
-// Fused app.js for Newings School Dashboard
+// Fused app.js for Newings School Dashboard (Role-Based & Smart + Export Word/PDF)
 // ======================
 
+// ---------------- ELEMENT REFERENCES ----------------
 const loginSection = document.getElementById('login-section');
 const dashboardSection = document.getElementById('dashboard-section');
 const loginForm = document.getElementById('loginForm');
@@ -23,9 +24,50 @@ const contentMessage = document.getElementById('contentMessage');
 
 let token = localStorage.getItem('token');
 let currentClass = '';
-let currentMode = ''; // 'attendance' | 'scores' | 'history'
-let currentData = []; // Loaded students data
-let changes = {};     // Track changes for saving
+let currentMode = '';
+let currentData = [];
+let changes = {};
+
+// ---------------- ROLE-BASED DASHBOARD SETUP ----------------
+async function setupDashboardForRole(token){
+  try {
+    const resUser = await fetch('/api/auth/me', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const userInfoData = await resUser.json();
+    const role = userInfoData.role;
+    window.currentRole = role;
+    userInfo.textContent = `${userInfoData.name} (${role})`;
+
+    // Hide everything by default
+    classSelect.style.display = 'none';
+    loadAttendanceBtn.style.display = 'none';
+    loadScoresBtn.style.display = 'none';
+    loadHistoryBtn.style.display = 'none';
+    saveChangesBtn.style.display = 'none';
+    contentMessage.textContent = '';
+
+    if(role === 'teacher'){
+      classSelect.style.display = 'inline-block';
+      loadAttendanceBtn.style.display = 'inline-block';
+      loadScoresBtn.style.display = 'inline-block';
+      loadHistoryBtn.style.display = 'inline-block';
+    } else if(role === 'accountant'){
+      contentMessage.textContent = "Fees management will be available here.";
+    } else if(role === 'admin' || role === 'head'){
+      classSelect.style.display = 'inline-block';
+      loadAttendanceBtn.style.display = 'inline-block';
+      loadScoresBtn.style.display = 'inline-block';
+      loadHistoryBtn.style.display = 'inline-block';
+      saveChangesBtn.style.display = 'inline-block';
+    } else if(role === 'student'){
+      contentMessage.textContent = "Welcome student! Your dashboard will appear here.";
+    }
+  } catch(err){
+    console.error('Dashboard setup error:', err);
+    contentMessage.textContent = 'Failed to setup dashboard.';
+  }
+}
 
 // ---------------- LOGIN ----------------
 loginForm.addEventListener('submit', async (e) => {
@@ -46,8 +88,9 @@ loginForm.addEventListener('submit', async (e) => {
     loginSection.classList.add('hidden');
     dashboardSection.classList.remove('hidden');
     logoutBtn.classList.remove('hidden');
-    userInfo.textContent = `${data.name} (${data.role})`;
+
     loadClasses();
+    await setupDashboardForRole(token);
   } catch(err) {
     loginError.textContent = err.message;
   }
@@ -61,7 +104,8 @@ logoutBtn.addEventListener('click', () => {
   dashboardSection.classList.add('hidden');
   tableBody.innerHTML = '';
   tableHeader.innerHTML = '';
-  saveChangesBtn.classList.add('hidden');
+  saveChangesBtn.style.display = 'none';
+  contentMessage.textContent = '';
 });
 
 // ---------------- LOAD CLASSES ----------------
@@ -86,7 +130,7 @@ async function loadData(mode){
   }
   currentClass = cls;
   changes = {};
-  saveChangesBtn.classList.add('hidden');
+  saveChangesBtn.style.display = 'none';
   contentMessage.textContent = '';
 
   let endpoint = '';
@@ -112,14 +156,13 @@ async function loadData(mode){
 function renderTable(type){
   tableHeader.innerHTML = '';
   tableBody.innerHTML = '';
-  saveChangesBtn.classList.add('hidden');
+  saveChangesBtn.style.display = 'none';
 
   if(!currentData.length){
     contentMessage.textContent='No data available';
     return;
   }
 
-  // Headers
   const headers = ['Name'];
   if(type==='attendance') headers.push('Attendance');
   else if(type==='scores') headers.push('Scores (JSON)');
@@ -133,7 +176,6 @@ function renderTable(type){
     tableHeader.appendChild(th);
   });
 
-  // Rows
   currentData.forEach(item=>{
     const tr = document.createElement('tr');
     const tdName = document.createElement('td');
@@ -154,7 +196,7 @@ function renderTable(type){
       });
       select.addEventListener('change', ()=>{
         changes[item.name] = select.value;
-        saveChangesBtn.classList.remove('hidden');
+        saveChangesBtn.style.display='inline-block';
       });
       td.appendChild(select);
       td.style.fontWeight='bold';
@@ -168,7 +210,7 @@ function renderTable(type){
       input.style.fontWeight='bold';
       input.style.color='red';
       input.addEventListener('input', ()=>{
-        try{ changes[item.name]=JSON.parse(input.value); saveChangesBtn.classList.remove('hidden'); }catch(err){}
+        try{ changes[item.name]=JSON.parse(input.value); saveChangesBtn.style.display='inline-block'; }catch(err){}
       });
       td.appendChild(input);
       tr.appendChild(td);
@@ -194,7 +236,6 @@ function renderTable(type){
 saveChangesBtn.addEventListener('click', async ()=>{
   if(!currentClass || !currentMode || !Object.keys(changes).length) return;
   const endpoint = currentMode==='attendance' ? '/api/teacher/attendance' : '/api/teacher/scores';
-
   let payload = { class: currentClass, [currentMode]: changes };
 
   try{
@@ -207,7 +248,7 @@ saveChangesBtn.addEventListener('click', async ()=>{
     if(!res.ok) throw new Error(data.error || 'Failed to save');
 
     contentMessage.textContent='Changes saved successfully!';
-    saveChangesBtn.classList.add('hidden');
+    saveChangesBtn.style.display = 'none';
     changes={};
     loadData(currentMode);
   }catch(err){
@@ -220,11 +261,67 @@ loadAttendanceBtn.addEventListener('click', ()=>loadData('attendance'));
 loadScoresBtn.addEventListener('click', ()=>loadData('scores'));
 loadHistoryBtn.addEventListener('click', ()=>loadData('history'));
 
-// ---------------- AUTO LOGIN IF TOKEN EXISTS ----------------
+// ---------------- AUTO LOGIN ----------------
 if(token){
   loginSection.classList.add('hidden');
   dashboardSection.classList.remove('hidden');
   logoutBtn.classList.remove('hidden');
   userInfo.textContent='Loading...';
   loadClasses();
+  setupDashboardForRole(token);
 }
+
+// ================= EXPORT WORD/PDF =================
+import { Document, Packer, Paragraph, Table, TableCell, TableRow } from "docx";
+import { saveAs } from "file-saver";
+import PDFDocument from "pdfkit";
+import blobStream from "blob-stream";
+
+// --- EXPORT TO WORD ---
+function exportToWord(tableId, fileName) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+
+  const rows = Array.from(table.rows);
+  const docTableRows = rows.map(row => {
+    const cells = Array.from(row.cells).map(cell =>
+      new TableCell({
+        children: [new Paragraph(cell.innerText)],
+      })
+    );
+    return new TableRow({ children: cells });
+  });
+
+  const doc = new Document({
+    sections: [{ children: [new Paragraph({ text: "Report", bold: true }), new Table({ rows: docTableRows })] }]
+  });
+
+  Packer.toBlob(doc).then(blob => saveAs(blob, fileName));
+}
+
+// --- EXPORT TO PDF ---
+function exportToPDF(tableId, fileName) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+
+  const doc = new PDFDocument();
+  const stream = doc.pipe(blobStream());
+
+  doc.fontSize(16).text("Report", { align: "center" }).moveDown();
+
+  const rows = Array.from(table.rows);
+  rows.forEach(row => {
+    const rowText = Array.from(row.cells).map(cell => cell.innerText).join(" | ");
+    doc.fontSize(12).text(rowText);
+  });
+
+  doc.end();
+  stream.on("finish", function () {
+    const blob = stream.toBlob("application/pdf");
+    saveAs(blob, fileName);
+  });
+}
+
+// --- EXPORT BUTTONS ---
+document.getElementById("exportWord").addEventListener("click", () => exportToWord("dataTable", "Report.docx"));
+document.getElementById("exportPDF").addEventListener("click", () => exportToPDF("dataTable", "Report.pdf"));

@@ -1,5 +1,5 @@
 /* =========================
-   style.css for Newings Dashboard
+   style.css for Newings Dashboard (Updated)
    ========================= */
 
 /* ---------- RESET & BASE ---------- */
@@ -12,11 +12,11 @@
 
 body {
   background: #f4f6f8;
-  color: #ff0000; /* Bright red font for visibility */
+  color: #ff0000; /* Bright red for visibility */
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  font-weight: bold; /* Bold for readability */
+  font-weight: bold;
   font-size: 1rem;
 }
 
@@ -43,7 +43,7 @@ header img#schoolLogo {
 }
 
 header h1 {
-  font-size: 1.75rem; /* Larger heading for mobile */
+  font-size: 1.75rem;
   font-weight: bold;
   margin-bottom: 0.5rem;
 }
@@ -189,7 +189,7 @@ th, td {
   border: 1px solid #ccc;
   font-weight: bold;
   font-size: 1rem;
-  color: #ff0000; /* Red text for readability */
+  color: #ff0000;
 }
 
 tr:nth-child(even) {
@@ -211,15 +211,23 @@ td input, td select {
 }
 
 /* ---------- COLOR-CODED ATTENDANCE ---------- */
-td input.present, td select.present {
+td select, td input {
+  text-align: center;
+}
+
+td select option[selected] {
+  font-weight: bold;
+}
+
+td select.present, td input.present {
   background-color: lightgreen;
 }
 
-td input.absent, td select.absent {
+td select.absent, td input.absent {
   background-color: lightcoral;
 }
 
-td input.late, td select.late {
+td select.late, td input.late {
   background-color: lightyellow;
 }
 

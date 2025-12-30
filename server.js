@@ -1,5 +1,5 @@
 // =====================
-// server.js for Newings School Management
+// server.js for Newings School Management (Smart CSV Dashboard)
 // =====================
 
 require('dotenv').config();
@@ -12,13 +12,24 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const fs = require('fs');
+const csv = require('csv-parser');
 
-const studentsData = require('./students'); // Bulk students data
-const auth = require('./auth');             // Auth middleware
+const auth = require('./auth'); // JWT Auth middleware
 
 const app = express();
 
-// ---------------- CSP HEADER ----------------
+// ---------------- SECURITY & MIDDLEWARE ----------------
+app.use(helmet());
+app.use(cors({
+  origin: '*',
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization']
+}));
+app.use(compression());
+app.use(express.json());
+
+// ---------------- CONTENT SECURITY POLICY ----------------
 app.use((req, res, next) => {
   res.setHeader(
     "Content-Security-Policy",
@@ -31,37 +42,22 @@ app.use((req, res, next) => {
   next();
 });
 
+// ---------------- RATE LIMITERS ----------------
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many login attempts, try later.' }
+});
+
 // ---------------- DATABASE ----------------
 const mongoURI = process.env.MONGODB_URI;
 if (!mongoURI) {
   console.error('❌ MONGODB_URI not found');
   process.exit(1);
 }
-
-mongoose.connect(mongoURI)
+mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log('✅ MongoDB connected'))
-  .catch(err => {
-    console.error('❌ MongoDB connection error:', err);
-    process.exit(1);
-  });
-
-// ---------------- MIDDLEWARE ----------------
-app.use(helmet());
-app.use(cors({
-  origin: '*',
-  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization']
-}));
-app.use(compression());
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
-
-// ---------------- RATE LIMITER ----------------
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,
-  message: { error: 'Too many login attempts, try later.' }
-});
+  .catch(err => { console.error('❌ MongoDB connection error:', err); process.exit(1); });
 
 // ---------------- SCHEMAS ----------------
 const studentSchema = new mongoose.Schema({
@@ -72,12 +68,6 @@ const studentSchema = new mongoose.Schema({
   ],
   scores: [
     { date: { type: Date, default: Date.now }, teacher: String, className: String, data: Object }
-  ],
-  remarks: [
-    { date: Date, teacher: String, conduct: String, remark: String }
-  ],
-  assignments: [
-    { date: Date, title: String, options: [String], selectedOption: String }
   ]
 });
 const Student = mongoose.model('Student', studentSchema);
@@ -86,13 +76,42 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, unique: true, required: true },
   password: { type: String, required: true },
-  role: { type: String, enum: ['admin','teacher','head','accountant'], required: true }
+  role: { type: String, enum: ['admin','teacher','head','accountant','student'], required: true }
 });
 const User = mongoose.model('User', userSchema);
 
-// ---------------- ROUTES ----------------
+// ---------------- HELPERS ----------------
+const permitRoles = (...roles) => (req, res, next) => {
+  if (!req.user || !roles.includes(req.user.role)) 
+    return res.status(403).json({ error: 'Forbidden: insufficient permissions' });
+  next();
+};
 
-// Setup admin
+const updateStudentField = async (cls, data, field, teacherId) => {
+  const updates = [];
+  for(const [name, value] of Object.entries(data)){
+    updates.push(Student.findOneAndUpdate(
+      { name, class: cls },
+      { $push: { [field]: { ...value, className: cls, teacher: teacherId, date: new Date() } } },
+      { new: true }
+    ));
+  }
+  await Promise.all(updates);
+};
+
+// ---------------- READ STUDENTS FROM CSV ----------------
+const readStudentsCSV = async () => {
+  return new Promise((resolve, reject) => {
+    const results = [];
+    fs.createReadStream(path.join(__dirname, 'students.csv'))
+      .pipe(csv())
+      .on('data', (data) => results.push(data))
+      .on('end', () => resolve(results))
+      .on('error', (err) => reject(err));
+  });
+};
+
+// ---------------- AUTH ROUTES ----------------
 app.post('/api/setup/admin', async (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) return res.status(400).json({ error: 'All fields required' });
@@ -105,13 +124,9 @@ app.post('/api/setup/admin', async (req, res) => {
     await User.create({ name, email, password: hashedPassword, role: 'admin' });
 
     res.json({ status: 'Admin created successfully' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-// Login
 app.post('/api/auth/login', loginLimiter, async (req,res)=>{
   const { email, password } = req.body;
   if(!email || !password) return res.status(400).json({ error: 'Email & password required' });
@@ -125,136 +140,83 @@ app.post('/api/auth/login', loginLimiter, async (req,res)=>{
 
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '365d' });
     res.json({ token, name: user.name, email: user.email, role: user.role });
-  } catch(err){
-    console.error('Login error:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
+  } catch(err){ console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-// Get current user
-app.get('/api/auth/me', auth, async(req,res)=>{
-  try {
+app.get('/api/auth/me', auth, async (req,res)=>{
+  try{
     const user = await User.findById(req.user.id).select('-password');
     res.json(user);
-  } catch(err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
+  } catch(err){ console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ---------------- ADMIN ROUTES ----------------
-app.post('/api/admin/students', auth, async(req,res)=>{
-  if(req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+app.post('/api/admin/students', auth, permitRoles('admin'), async(req,res)=>{
   const { name, class: cls } = req.body;
   if(!name || !cls) return res.status(400).json({ error: 'Name & class required' });
 
   try {
-    const student = await Student.create({ name, class: cls, attendance: [], scores: [], remarks: [], assignments: [] });
+    const student = await Student.create({ name, class: cls });
     res.json({ status: 'Student added', student });
-  } catch(err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to add student' });
-  }
+  } catch(err){ console.error(err); res.status(500).json({ error: 'Failed to add student' }); }
 });
 
-// Bulk add students
-app.post('/api/admin/bulk-add-students', auth, async(req,res)=>{
-  if(req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
-
+// ---------------- BULK ADD STUDENTS FROM CSV ----------------
+app.post('/api/admin/bulk-add-students', auth, permitRoles('admin'), async(req,res)=>{
   try {
+    const studentsData = await readStudentsCSV();
     const inserted = await Student.insertMany(studentsData, { ordered: false });
-    res.json({ status: 'Students added', count: inserted.length });
-  } catch(err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to add students' });
-  }
+    res.json({ status: 'Students added from CSV', count: inserted.length });
+  } catch(err){ console.error(err); res.status(500).json({ error: 'Failed to add students from CSV' }); }
 });
 
-// Add staff
-app.post('/api/admin/staff', auth, async(req,res)=>{
-  if(!['admin','head'].includes(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+app.post('/api/admin/staff', auth, permitRoles('admin','head'), async(req,res)=>{
   const { name, email, password, role } = req.body;
   if(!name || !email || !password || !role) return res.status(400).json({ error: 'All fields required' });
-  if(!['teacher','head'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
+  if(!['teacher','head','accountant'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
 
-  try {
+  try{
     const exists = await User.findOne({ email });
-    if(exists) return res.status(409).json({ error: 'User with this email already exists' });
+    if(exists) return res.status(409).json({ error: 'User already exists' });
 
     const hashedPassword = await bcrypt.hash(password, 12);
     const staff = await User.create({ name, email, password: hashedPassword, role });
     res.json({ status: `${role} added`, staff });
-  } catch(err){
-    console.error(err);
-    res.status(500).json({ error: 'Failed to add staff' });
-  }
+  } catch(err){ console.error(err); res.status(500).json({ error: 'Failed to add staff' }); }
 });
 
 // ---------------- TEACHER ROUTES ----------------
-app.get('/api/teacher/attendance', auth, async(req,res)=>{
-  if(req.user.role !== 'teacher') return res.status(403).json({ error: 'Forbidden' });
+app.get('/api/teacher/attendance', auth, permitRoles('teacher'), async(req,res)=>{
   const cls = req.query.class;
   if(!cls) return res.status(400).json({ error: 'Class required' });
 
-  try {
+  try{
     const students = await Student.find({ class: cls }).select('name class attendance scores');
     res.json({ items: students });
-  } catch(err){
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
+  } catch(err){ console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-app.post('/api/teacher/attendance', auth, async(req,res)=>{
-  if(req.user.role !== 'teacher') return res.status(403).json({ error: 'Forbidden' });
+app.post('/api/teacher/attendance', auth, permitRoles('teacher'), async(req,res)=>{
   const { class: cls, attendance } = req.body;
   if(!cls || !attendance) return res.status(400).json({ error: 'Class & attendance required' });
 
-  try {
-    const updates = [];
-    for(const [name,status] of Object.entries(attendance)){
-      updates.push(Student.findOneAndUpdate(
-        { name, class: cls },
-        { $push: { attendance: { status, className: cls, teacher: req.user.id } } },
-        { new: true }
-      ));
-    }
-    await Promise.all(updates);
-    res.json({ status: 'Attendance saved' });
-  } catch(err){
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
+  try{ await updateStudentField(cls, attendance, 'attendance', req.user.id); res.json({ status: 'Attendance saved' }); }
+  catch(err){ console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-app.post('/api/teacher/scores', auth, async(req,res)=>{
-  if(req.user.role !== 'teacher') return res.status(403).json({ error: 'Forbidden' });
+app.post('/api/teacher/scores', auth, permitRoles('teacher'), async(req,res)=>{
   const { class: cls, scores } = req.body;
   if(!cls || !scores) return res.status(400).json({ error: 'Class & scores required' });
 
-  try {
-    const updates = [];
-    for(const [name,data] of Object.entries(scores)){
-      updates.push(Student.findOneAndUpdate(
-        { name, class: cls },
-        { $push: { scores: { data, className: cls, teacher: req.user.id } } },
-        { new: true }
-      ));
-    }
-    await Promise.all(updates);
-    res.json({ status: 'Scores saved' });
-  } catch(err){
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
+  try{ await updateStudentField(cls, scores, 'scores', req.user.id); res.json({ status: 'Scores saved' }); }
+  catch(err){ console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-app.get('/api/teacher/history', auth, async(req,res)=>{
-  if(req.user.role !== 'teacher') return res.status(403).json({ error: 'Forbidden' });
+app.get('/api/teacher/history', auth, permitRoles('teacher'), async(req,res)=>{
   const cls = req.query.class;
   if(!cls) return res.status(400).json({ error: 'Class required' });
 
-  try {
+  try{
     const students = await Student.find({ class: cls }).select('name attendance scores');
     const history = students.map(s => ({
       name: s.name,
@@ -262,35 +224,25 @@ app.get('/api/teacher/history', auth, async(req,res)=>{
       scores: s.scores.filter(sc => sc.className === cls)
     }));
     res.json({ items: history });
-  } catch(err){
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
+  } catch(err){ console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ---------------- HEADMASTER ROUTES ----------------
-app.get('/api/head/overview', auth, async(req,res)=>{
-  if(req.user.role !== 'head') return res.status(403).json({ error: 'Forbidden' });
-
-  try {
+app.get('/api/head/overview', auth, permitRoles('head'), async(req,res)=>{
+  try{
     const students = await Student.find();
     res.json({ students });
-  } catch(err){
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
+  } catch(err){ console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ---------------- ACCOUNTANT ROUTES ----------------
-app.get('/api/account/fees', auth, async(req,res)=>{
-  if(req.user.role !== 'accountant') return res.status(403).json({ error: 'Forbidden' });
+app.get('/api/account/fees', auth, permitRoles('accountant'), async(req,res)=>{
   res.json({ fees: "Functionality to implement" });
 });
 
 // ---------------- SERVE FRONTEND ----------------
-app.get('*', (req,res)=> {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+app.use(express.static(path.join(__dirname, 'public')));
+app.get('*', (req,res)=> res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 // ---------------- START SERVER ----------------
 const PORT = process.env.PORT || 3000;
