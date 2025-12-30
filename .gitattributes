@@ -1,0 +1,6 @@
+# Normalize line endings
+* text=auto
+
+# Force JS and JSON files to LF
+*.js text eol=lf
+*.json text eol=lf
