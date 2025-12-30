@@ -55,7 +55,9 @@ if (!mongoURI) {
   console.error('❌ MONGODB_URI not found');
   process.exit(1);
 }
-mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
+
+// Updated connection: remove unsupported options
+mongoose.connect(mongoURI)
   .then(() => console.log('✅ MongoDB connected'))
   .catch(err => { console.error('❌ MongoDB connection error:', err); process.exit(1); });
 
@@ -161,7 +163,6 @@ app.post('/api/admin/students', auth, permitRoles('admin'), async(req,res)=>{
   } catch(err){ console.error(err); res.status(500).json({ error: 'Failed to add student' }); }
 });
 
-// ---------------- BULK ADD STUDENTS FROM CSV ----------------
 app.post('/api/admin/bulk-add-students', auth, permitRoles('admin'), async(req,res)=>{
   try {
     const studentsData = await readStudentsCSV();
