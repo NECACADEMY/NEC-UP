@@ -1,4 +1,7 @@
-// server.js - Newings School Management
+// =====================
+// server.js for Newings School Management
+// =====================
+
 require('dotenv').config();
 const express = require('express');
 const helmet = require('helmet');
@@ -9,13 +12,13 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
-const auth = require('./auth'); // Use the new auth middleware
-const studentsData = require('./students');
+
+const auth = require('./auth'); // authentication middleware
+const studentsData = require('./students'); // bulk students file
 
 const app = express();
 
-// ---------------- SECURITY HEADERS ----------------
-app.use(helmet());
+// ---------------- CSP HEADER ----------------
 app.use((req, res, next) => {
   res.setHeader(
     "Content-Security-Policy",
@@ -23,60 +26,51 @@ app.use((req, res, next) => {
     "script-src 'self'; " +
     "style-src 'self' 'unsafe-inline'; " +
     "img-src 'self' data:; " +
-    "connect-src 'self';"
+    "connect-src 'self' https://nec-up.onrender.com;"
   );
   next();
-});
-
-// ---------------- CORS ----------------
-app.use(cors({
-  origin: '*', // Update for production to restrict domains
-  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization']
-}));
-
-// ---------------- COMPRESSION & JSON ----------------
-app.use(compression());
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
-
-// ---------------- RATE LIMIT ----------------
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,
-  message: { error: 'Too many login attempts, try later.' }
 });
 
 // ---------------- DATABASE ----------------
 const mongoURI = process.env.MONGODB_URI;
 if (!mongoURI) {
-  console.error('❌ MONGODB_URI not found in .env');
+  console.error('❌ MONGODB_URI not found');
   process.exit(1);
 }
 
-mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect(mongoURI)
   .then(() => console.log('✅ MongoDB connected'))
   .catch(err => {
     console.error('❌ MongoDB connection error:', err);
     process.exit(1);
   });
 
+// ---------------- MIDDLEWARE ----------------
+app.use(helmet());
+app.use(cors({
+  origin: '*',
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization']
+}));
+app.use(compression());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// ---------------- RATE LIMITER ----------------
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  message: { error: 'Too many login attempts, try later.' }
+});
+
 // ---------------- SCHEMAS ----------------
 const studentSchema = new mongoose.Schema({
   name: { type: String, required: true },
   class: { type: String, required: true },
-  attendance: [
-    { date: { type: Date, default: Date.now }, status: String, teacher: String, className: String }
-  ],
-  scores: [
-    { date: { type: Date, default: Date.now }, teacher: String, className: String, data: Object }
-  ],
-  remarks: [
-    { date: Date, teacher: String, conduct: String, remark: String }
-  ],
-  assignments: [
-    { date: Date, title: String, options: [String], selectedOption: String }
-  ]
+  attendance: [{ date: { type: Date, default: Date.now }, status: String, teacher: String, className: String }],
+  scores: [{ date: { type: Date, default: Date.now }, teacher: String, className: String, data: Object }],
+  remarks: [{ date: Date, teacher: String, conduct: String, remark: String }],
+  assignments: [{ date: Date, title: String, options: [String], selectedOption: String }]
 });
 const Student = mongoose.model('Student', studentSchema);
 
@@ -148,7 +142,7 @@ app.post('/api/admin/students', auth, async(req,res)=>{
     const student = await Student.create({name,class:cls,attendance:[],scores:[],remarks:[],assignments:[]});
     res.json({status:'Student added',student});
   }catch(err){ 
-    console.error(err); 
+    console.error('Add student error:', err); 
     res.status(500).json({error:'Failed to add student'});
   }
 });
@@ -165,7 +159,8 @@ app.post('/api/admin/bulk-add-students', auth, async (req, res) => {
 });
 
 app.post('/api/admin/staff', auth, async (req, res) => {
-  if(req.user.role !== 'admin' && req.user.role !== 'head') return res.status(403).json({ error: 'Forbidden' });
+  if(!['admin','head'].includes(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+
   const { name, email, password, role } = req.body;
   if (!name || !email || !password || !role) return res.status(400).json({ error: 'All fields required' });
   if(!['teacher','head'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
@@ -176,9 +171,10 @@ app.post('/api/admin/staff', auth, async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 12);
     const staff = await User.create({ name, email, password: hashedPassword, role });
+
     res.json({ status: `${role} added`, staff });
   } catch (err) {
-    console.error(err);
+    console.error('Add staff error:', err);
     res.status(500).json({ error: 'Failed to add staff' });
   }
 });
@@ -240,6 +236,25 @@ app.post('/api/teacher/scores', auth, async (req, res) => {
     }
     await Promise.all(updates);
     res.json({ status: 'Scores saved' });
+  } catch(err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.get('/api/teacher/history', auth, async (req, res) => {
+  if(req.user.role !== 'teacher') return res.status(403).json({ error: 'Forbidden' });
+  const cls = req.query.class;
+  if (!cls) return res.status(400).json({ error: 'Class required' });
+
+  try {
+    const students = await Student.find({ class: cls }).select('name attendance scores');
+    const history = students.map(s => ({
+      name: s.name,
+      attendance: s.attendance.filter(a => a.className === cls),
+      scores: s.scores.filter(sc => sc.className === cls)
+    }));
+    res.json({ items: history });
   } catch(err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
