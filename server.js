@@ -1,7 +1,4 @@
-// =====================
-// server.js for Newings School Management (Full Rewrite)
-// =====================
-
+// server.js - Newings School Management
 require('dotenv').config();
 const express = require('express');
 const helmet = require('helmet');
@@ -12,13 +9,13 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
-
-const studentsData = require('./students'); // Bulk student import
-const auth = require('./auth'); // auth middleware
+const auth = require('./auth'); // Use the new auth middleware
+const studentsData = require('./students');
 
 const app = express();
 
-// ---------------- CSP HEADER ----------------
+// ---------------- SECURITY HEADERS ----------------
+app.use(helmet());
 app.use((req, res, next) => {
   res.setHeader(
     "Content-Security-Policy",
@@ -26,46 +23,43 @@ app.use((req, res, next) => {
     "script-src 'self'; " +
     "style-src 'self' 'unsafe-inline'; " +
     "img-src 'self' data:; " +
-    "connect-src 'self' https://nec-up.onrender.com;"
+    "connect-src 'self';"
   );
   next();
 });
 
-// ---------------- MIDDLEWARE ----------------
-app.use(helmet());
+// ---------------- CORS ----------------
 app.use(cors({
-  origin: '*',
+  origin: '*', // Update for production to restrict domains
   methods: ['GET','POST','PUT','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization']
 }));
+
+// ---------------- COMPRESSION & JSON ----------------
 app.use(compression());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ---------------- RATE LIMITER ----------------
+// ---------------- RATE LIMIT ----------------
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10,
   message: { error: 'Too many login attempts, try later.' }
 });
 
-// ---------------- DATABASE WITH RETRY ----------------
+// ---------------- DATABASE ----------------
 const mongoURI = process.env.MONGODB_URI;
 if (!mongoURI) {
-  console.error('❌ MONGODB_URI not found in environment');
+  console.error('❌ MONGODB_URI not found in .env');
   process.exit(1);
 }
 
-const connectWithRetry = () => {
-  mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log('✅ MongoDB connected'))
-    .catch(err => {
-      console.error('❌ MongoDB connection failed:', err.message);
-      console.log('⏳ Retrying in 5 seconds...');
-      setTimeout(connectWithRetry, 5000);
-    });
-};
-connectWithRetry();
+mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('✅ MongoDB connected'))
+  .catch(err => {
+    console.error('❌ MongoDB connection error:', err);
+    process.exit(1);
+  });
 
 // ---------------- SCHEMAS ----------------
 const studentSchema = new mongoose.Schema({
@@ -147,20 +141,20 @@ app.get('/api/auth/me', auth, async(req,res)=>{
 
 // ---------------- ADMIN ROUTES ----------------
 app.post('/api/admin/students', auth, async(req,res)=>{
-  if(req.role!=='admin') return res.status(403).json({error:'Forbidden'});
+  if(req.user.role!=='admin') return res.status(403).json({error:'Forbidden'});
   const {name,class:cls} = req.body;
   if(!name||!cls) return res.status(400).json({error:'Name & class required'});
   try{
     const student = await Student.create({name,class:cls,attendance:[],scores:[],remarks:[],assignments:[]});
     res.json({status:'Student added',student});
   }catch(err){ 
-    console.error('Add student error:', err); 
+    console.error(err); 
     res.status(500).json({error:'Failed to add student'});
   }
 });
 
 app.post('/api/admin/bulk-add-students', auth, async (req, res) => {
-  if(req.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+  if(req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
   try {
     const inserted = await Student.insertMany(studentsData, { ordered: false });
     res.json({ status: 'Students added', count: inserted.length });
@@ -171,11 +165,10 @@ app.post('/api/admin/bulk-add-students', auth, async (req, res) => {
 });
 
 app.post('/api/admin/staff', auth, async (req, res) => {
-  if(req.role !== 'admin' && req.role !== 'head') return res.status(403).json({ error: 'Forbidden' });
-
+  if(req.user.role !== 'admin' && req.user.role !== 'head') return res.status(403).json({ error: 'Forbidden' });
   const { name, email, password, role } = req.body;
   if (!name || !email || !password || !role) return res.status(400).json({ error: 'All fields required' });
-  if(!['teacher','head','accountant'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
+  if(!['teacher','head'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
 
   try {
     const exists = await User.findOne({ email });
@@ -183,17 +176,16 @@ app.post('/api/admin/staff', auth, async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 12);
     const staff = await User.create({ name, email, password: hashedPassword, role });
-
     res.json({ status: `${role} added`, staff });
   } catch (err) {
-    console.error('Add staff error:', err);
+    console.error(err);
     res.status(500).json({ error: 'Failed to add staff' });
   }
 });
 
 // ---------------- TEACHER ROUTES ----------------
 app.get('/api/teacher/attendance', auth, async (req, res) => {
-  if(req.role !== 'teacher') return res.status(403).json({ error: 'Forbidden' });
+  if(req.user.role !== 'teacher') return res.status(403).json({ error: 'Forbidden' });
   const cls = req.query.class;
   if (!cls) return res.status(400).json({ error: 'Class required' });
 
@@ -207,7 +199,7 @@ app.get('/api/teacher/attendance', auth, async (req, res) => {
 });
 
 app.post('/api/teacher/attendance', auth, async (req, res) => {
-  if(req.role !== 'teacher') return res.status(403).json({ error: 'Forbidden' });
+  if(req.user.role !== 'teacher') return res.status(403).json({ error: 'Forbidden' });
   const { class: cls, attendance } = req.body;
   if (!cls || !attendance) return res.status(400).json({ error: 'Class & attendance required' });
 
@@ -231,7 +223,7 @@ app.post('/api/teacher/attendance', auth, async (req, res) => {
 });
 
 app.post('/api/teacher/scores', auth, async (req, res) => {
-  if(req.role !== 'teacher') return res.status(403).json({ error: 'Forbidden' });
+  if(req.user.role !== 'teacher') return res.status(403).json({ error: 'Forbidden' });
   const { class: cls, scores } = req.body;
   if (!cls || !scores) return res.status(400).json({ error: 'Class & scores required' });
 
@@ -254,28 +246,9 @@ app.post('/api/teacher/scores', auth, async (req, res) => {
   }
 });
 
-app.get('/api/teacher/history', auth, async (req, res) => {
-  if(req.role !== 'teacher') return res.status(403).json({ error: 'Forbidden' });
-  const cls = req.query.class;
-  if (!cls) return res.status(400).json({ error: 'Class required' });
-
-  try {
-    const students = await Student.find({ class: cls }).select('name attendance scores');
-    const history = students.map(s => ({
-      name: s.name,
-      attendance: s.attendance.filter(a => a.className === cls),
-      scores: s.scores.filter(sc => sc.className === cls)
-    }));
-    res.json({ items: history });
-  } catch(err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
 // ---------------- HEADMASTER ROUTES ----------------
 app.get('/api/head/overview', auth, async (req, res) => {
-  if(req.role !== 'head') return res.status(403).json({ error: 'Forbidden' });
+  if(req.user.role !== 'head') return res.status(403).json({ error: 'Forbidden' });
   try {
     const students = await Student.find();
     res.json({ students });
@@ -287,8 +260,7 @@ app.get('/api/head/overview', auth, async (req, res) => {
 
 // ---------------- ACCOUNTANT ROUTES ----------------
 app.get('/api/account/fees', auth, async (req,res)=>{
-  if(req.role !== 'accountant') return res.status(403).json({ error:'Forbidden' });
-  // Replace with actual implementation
+  if(req.user.role !== 'accountant') return res.status(403).json({ error:'Forbidden' });
   res.json({ fees: "Functionality to implement" });
 });
 
