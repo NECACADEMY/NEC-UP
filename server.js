@@ -1,5 +1,5 @@
 // =====================
-// server.js for Newings School Management
+// server.js for Newings School Management (Full Rewrite)
 // =====================
 
 require('dotenv').config();
@@ -13,7 +13,8 @@ const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
-const studentsData = require('./students'); // <-- our bulk students file
+const studentsData = require('./students'); // Bulk student import
+const auth = require('./auth'); // auth middleware
 
 const app = express();
 
@@ -29,20 +30,6 @@ app.use((req, res, next) => {
   );
   next();
 });
-
-// ---------------- DATABASE ----------------
-const mongoURI = process.env.MONGODB_URI;
-if (!mongoURI) {
-  console.error('❌ MONGODB_URI not found');
-  process.exit(1);
-}
-
-mongoose.connect(mongoURI)
-  .then(() => console.log('✅ MongoDB connected'))
-  .catch(err => {
-    console.error('❌ MongoDB connection error:', err);
-    process.exit(1);
-  });
 
 // ---------------- MIDDLEWARE ----------------
 app.use(helmet());
@@ -62,21 +49,23 @@ const loginLimiter = rateLimit({
   message: { error: 'Too many login attempts, try later.' }
 });
 
-// ---------------- AUTH MIDDLEWARE ----------------
-function auth(req, res, next) {
-  const header = req.headers.authorization;
-  if (!header) return res.status(401).json({ error: 'No token provided' });
-  const token = header.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'No token provided' });
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-    req.role = decoded.role;
-    next();
-  } catch (err) {
-    return res.status(403).json({ error: 'Invalid token' });
-  }
+// ---------------- DATABASE WITH RETRY ----------------
+const mongoURI = process.env.MONGODB_URI;
+if (!mongoURI) {
+  console.error('❌ MONGODB_URI not found in environment');
+  process.exit(1);
 }
+
+const connectWithRetry = () => {
+  mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => console.log('✅ MongoDB connected'))
+    .catch(err => {
+      console.error('❌ MongoDB connection failed:', err.message);
+      console.log('⏳ Retrying in 5 seconds...');
+      setTimeout(connectWithRetry, 5000);
+    });
+};
+connectWithRetry();
 
 // ---------------- SCHEMAS ----------------
 const studentSchema = new mongoose.Schema({
@@ -157,8 +146,6 @@ app.get('/api/auth/me', auth, async(req,res)=>{
 });
 
 // ---------------- ADMIN ROUTES ----------------
-
-// Admin: Add student
 app.post('/api/admin/students', auth, async(req,res)=>{
   if(req.role!=='admin') return res.status(403).json({error:'Forbidden'});
   const {name,class:cls} = req.body;
@@ -172,11 +159,10 @@ app.post('/api/admin/students', auth, async(req,res)=>{
   }
 });
 
-// Admin: Bulk add students
 app.post('/api/admin/bulk-add-students', auth, async (req, res) => {
   if(req.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
   try {
-    const inserted = await Student.insertMany(studentsData, { ordered: false }); // skip duplicates
+    const inserted = await Student.insertMany(studentsData, { ordered: false });
     res.json({ status: 'Students added', count: inserted.length });
   } catch (err) {
     console.error(err);
@@ -184,13 +170,12 @@ app.post('/api/admin/bulk-add-students', auth, async (req, res) => {
   }
 });
 
-// Admin/Head: Add staff
 app.post('/api/admin/staff', auth, async (req, res) => {
   if(req.role !== 'admin' && req.role !== 'head') return res.status(403).json({ error: 'Forbidden' });
 
   const { name, email, password, role } = req.body;
   if (!name || !email || !password || !role) return res.status(400).json({ error: 'All fields required' });
-  if(!['teacher','head'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
+  if(!['teacher','head','accountant'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
 
   try {
     const exists = await User.findOne({ email });
@@ -303,6 +288,7 @@ app.get('/api/head/overview', auth, async (req, res) => {
 // ---------------- ACCOUNTANT ROUTES ----------------
 app.get('/api/account/fees', auth, async (req,res)=>{
   if(req.role !== 'accountant') return res.status(403).json({ error:'Forbidden' });
+  // Replace with actual implementation
   res.json({ fees: "Functionality to implement" });
 });
 
